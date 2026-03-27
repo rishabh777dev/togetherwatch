@@ -1,7 +1,7 @@
 'use client';
 
 import { getImageUrl, Movie } from '@/lib/tmdb';
-import { Info, Play, Star, Users } from 'lucide-react';
+import { Info, Play, Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -20,10 +20,7 @@ function HeroSlide({ movie, isActive }: HeroSlideProps) {
             : '';
 
     return (
-        <div
-            className={`absolute inset-0 transition-opacity duration-700 ${isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'
-                }`}
-        >
+        <div className={`absolute inset-0 transition-opacity duration-1000 ${isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
             {/* Background Image */}
             <div className="absolute inset-0">
                 <Image
@@ -34,59 +31,61 @@ function HeroSlide({ movie, isActive }: HeroSlideProps) {
                     priority={isActive}
                     sizes="100vw"
                 />
-                {/* Gradient Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-r from-bg-primary via-bg-primary/60 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-transparent to-transparent" />
+                {/* Cineby-style Gradient Overlays */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#0b0b0b] via-[#0b0b0b]/80 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0b] via-transparent to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-bg-primary to-transparent" />
             </div>
 
             {/* Content */}
-            <div className="relative h-full flex items-center">
+            <div className="relative h-full flex items-center pt-20">
                 <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 w-full">
                     <div className="max-w-2xl">
-                        {/* Badge */}
-                        <div className="flex items-center gap-3 mb-4 animate-fade-in">
-                            <span className="badge">#1 Trending</span>
-                            {movie.vote_average > 0 && (
-                                <span className="rating text-yellow-400">
-                                    <Star className="w-4 h-4 fill-yellow-400" />
-                                    {movie.vote_average.toFixed(1)}
-                                </span>
-                            )}
-                            {releaseYear && (
-                                <span className="text-text-secondary text-sm">{releaseYear}</span>
-                            )}
-                        </div>
-
-                        {/* Title */}
-                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 animate-slide-up">
+                        
+                        {/* Title - Huge Impact font style */}
+                        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black mb-4 tracking-tight uppercase animate-slide-up leading-none drop-shadow-2xl text-white">
                             {title}
                         </h1>
 
+                        {/* Metadata Row */}
+                        <div className="flex items-center gap-3 mb-6 animate-fade-in text-sm font-semibold text-white/80">
+                            {movie.vote_average > 0 && (
+                                <span className="flex items-center gap-1 text-yellow-500">
+                                    <Star className="w-4 h-4 fill-yellow-500" />
+                                    {movie.vote_average.toFixed(1)}
+                                </span>
+                            )}
+                            <span className="w-1 h-1 rounded-full bg-white/30" />
+                            {releaseYear && <span>{releaseYear}</span>}
+                            {movie.genres && movie.genres.length > 0 && (
+                                <>
+                                    <span className="w-1 h-1 rounded-full bg-white/30" />
+                                    <span>{movie.genres.map(g => g.name).join(' | ')}</span>
+                                </>
+                            )}
+                        </div>
+
                         {/* Description */}
-                        <p className="text-text-secondary text-lg leading-relaxed mb-8 line-clamp-3 animate-slide-up" style={{ animationDelay: '100ms' }}>
+                        <p className="text-text-secondary text-base lg:text-lg leading-relaxed mb-8 line-clamp-3 animate-slide-up max-w-xl font-medium" style={{ animationDelay: '100ms' }}>
                             {movie.overview}
                         </p>
 
-                        {/* Buttons */}
+                        {/* Buttons matching Cineby */}
                         <div className="flex items-center gap-4 animate-slide-up" style={{ animationDelay: '200ms' }}>
                             <Link
-                                href={`/watch/${movie.media_type || 'movie'}/${movie.imdbID || movie.id}`}
-                                className="btn-primary flex items-center gap-2"
+                                href={`/watch/${movie.media_type || 'movie'}/${movie.id}`}
+                                className="flex items-center gap-2 bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-white/90 hover:scale-105 transition-all shadow-xl"
                             >
-                                <Play className="w-5 h-5 fill-white" />
-                                Watch Now
+                                <Play className="w-5 h-5 fill-black" />
+                                Play
                             </Link>
                             <Link
-                                href={`/room/create?type=${movie.media_type || 'movie'}&id=${movie.imdbID || movie.id}`}
-                                className="btn-ghost flex items-center gap-2"
+                                href={`/watch/${movie.media_type || 'movie'}/${movie.id}`}
+                                className="flex items-center gap-2 bg-[#1a1a1a]/80 text-white border border-white/20 px-8 py-3 rounded-full font-bold hover:bg-white/10 hover:border-white/40 transition-all backdrop-blur-md"
                             >
-                                <Users className="w-5 h-5" />
-                                Watch Together
-                            </Link>
-                            <button className="btn-ghost flex items-center gap-2">
                                 <Info className="w-5 h-5" />
-                                Details
-                            </button>
+                                See More
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -100,42 +99,38 @@ interface HeroCarouselProps {
 }
 
 export default function HeroCarousel({ movies }: HeroCarouselProps) {
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const [activeIndex, setActiveIndex] = useState(0);
 
-    // Auto-rotate
     useEffect(() => {
-        if (movies.length <= 1) return;
-
+        if (!movies.length) return;
         const interval = setInterval(() => {
-            setCurrentIndex((prev) => (prev + 1) % movies.length);
-        }, 8000);
-
+            setActiveIndex((current) => (current + 1) % movies.length);
+        }, 8000); // 8 seconds per slide
         return () => clearInterval(interval);
     }, [movies.length]);
 
     if (!movies.length) return null;
 
     return (
-        <section className="relative h-[70vh] min-h-[500px] max-h-[900px] w-full overflow-hidden">
-            {/* Slides */}
-            {movies.slice(0, 5).map((movie, index) => (
+        <section className="relative h-[85vh] min-h-[600px] w-full overflow-hidden">
+            {movies.map((movie, index) => (
                 <HeroSlide
                     key={movie.id}
                     movie={movie}
-                    isActive={index === currentIndex}
+                    isActive={index === activeIndex}
                 />
             ))}
 
-            {/* Indicators */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
-                {movies.slice(0, 5).map((_, index) => (
+            {/* Pagination Indicators matching Cineby */}
+            <div className="absolute bottom-32 right-12 z-20 flex gap-2">
+                {movies.map((_, index) => (
                     <button
                         key={index}
-                        onClick={() => setCurrentIndex(index)}
-                        className={`h-1 rounded-full transition-all duration-300 ${index === currentIndex
-                            ? 'w-8 bg-accent'
-                            : 'w-4 bg-text-muted hover:bg-text-secondary'
-                            }`}
+                        onClick={() => setActiveIndex(index)}
+                        className={`transition-all duration-300 rounded-full bg-white ${
+                            index === activeIndex ? 'w-8 h-2 opacity-100' : 'w-2 h-2 opacity-30 hover:opacity-100'
+                        }`}
+                        aria-label={`Go to slide ${index + 1}`}
                     />
                 ))}
             </div>

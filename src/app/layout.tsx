@@ -12,6 +12,8 @@ export const metadata: Metadata = {
     },
 }
 
+import AuthProvider from '@/components/AuthProvider';
+
 export default function RootLayout({
     children,
 }: {
@@ -20,7 +22,9 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <body className="min-h-screen bg-night-800 text-text-primary antialiased" suppressHydrationWarning>
-                {children}
+                <AuthProvider>
+                    {children}
+                </AuthProvider>
             </body>
         </html>
     )

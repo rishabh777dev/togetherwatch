@@ -44,10 +44,13 @@ export const videoSources: VideoSource[] = [
         description: 'VidSrc mirror (often bypasses blocks)',
         features: ['Backup', 'Alternative', 'HD'],
         icon: '🎬',
-        getEmbedUrl: (mediaType, mediaId, season, episode) =>
-            mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.me/embed/tv?imdb=${mediaId}&season=${season}&episode=${episode}`
-                : `https://vidsrc.me/embed/${mediaType}?imdb=${mediaId}`
+        getEmbedUrl: (mediaType, mediaId, season, episode) => {
+            const isImdb = String(mediaId).startsWith('tt');
+            const idParam = isImdb ? `imdb=${mediaId}` : `tmdb=${mediaId}`;
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidsrc.me/embed/tv?${idParam}&season=${season}&episode=${episode}`
+                : `https://vidsrc.me/embed/${mediaType}?${idParam}`;
+        }
     },
     {
         id: 'vidsrccc',
@@ -55,10 +58,11 @@ export const videoSources: VideoSource[] = [
         description: 'VidSrc with more language options',
         features: ['Hindi Dub', 'Multi-lang', 'Subs'],
         icon: '🌍',
-        getEmbedUrl: (mediaType, mediaId, season, episode) =>
-            mediaType === 'tv' && season !== undefined && episode !== undefined
+        getEmbedUrl: (mediaType, mediaId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
                 ? `https://vidsrc.cc/v2/embed/tv/${mediaId}/${season}/${episode}`
-                : `https://vidsrc.cc/v2/embed/${mediaType}/${mediaId}`
+                : `https://vidsrc.cc/v2/embed/${mediaType}/${mediaId}`;
+        }
     },
     {
         id: 'superembed',

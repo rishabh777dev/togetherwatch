@@ -1,14 +1,21 @@
 'use client';
 
-import { LogIn, Menu, Search, User, X } from 'lucide-react';
+import { LogIn, LogOut, Menu, Search, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { supabase } from '@/lib/supabase';
 
 export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const { user, isInitialized } = useAuthStore();
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+    };
 
     useEffect(() => {
         const handleScroll = () => {
@@ -110,22 +117,40 @@ export default function Navbar() {
                         </div>
 
                         {/* Auth Buttons */}
-                        <div className="hidden sm:flex items-center gap-2">
-                            <Link
-                                href="/auth"
-                                className="flex items-center gap-2 px-4 py-2 text-text-secondary hover:text-white transition-colors"
-                            >
-                                <LogIn className="w-4 h-4" />
-                                <span className="text-sm font-medium">Sign In</span>
-                            </Link>
-                            <Link
-                                href="/dashboard"
-                                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-light 
-                         rounded-lg transition-colors text-sm font-medium"
-                            >
-                                <User className="w-4 h-4" />
-                                <span>Dashboard</span>
-                            </Link>
+                        <div className="hidden sm:flex items-center gap-2 min-w-[140px] justify-end">
+                            {isInitialized ? (
+                                user ? (
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-medium text-text-secondary truncate max-w-[120px]">
+                                            {user.email?.split('@')[0]}
+                                        </span>
+                                        <Link
+                                            href="/dashboard"
+                                            className="flex items-center justify-center w-9 h-9 bg-bg-tertiary hover:bg-bg-hover rounded-full transition-colors"
+                                            title="Dashboard"
+                                        >
+                                            <User className="w-4 h-4 text-text-secondary hover:text-white" />
+                                        </Link>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="flex items-center justify-center w-9 h-9 bg-red-500/10 hover:bg-red-500/20 rounded-full transition-colors"
+                                            title="Sign Out"
+                                        >
+                                            <LogOut className="w-4 h-4 text-red-500" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <Link
+                                        href="/login"
+                                        className="flex items-center gap-2 px-6 py-2 bg-accent hover:bg-accent-light rounded-lg transition-colors text-white text-sm font-medium"
+                                    >
+                                        <LogIn className="w-4 h-4" />
+                                        <span>Sign In</span>
+                                    </Link>
+                                )
+                            ) : (
+                                <div className="w-24 h-9 bg-bg-tertiary animate-pulse rounded-lg"></div>
+                            )}
                         </div>
 
                         {/* Mobile Menu Button */}
@@ -186,20 +211,35 @@ export default function Navbar() {
                             Watch Together
                         </Link>
                         <hr className="border-border my-2" />
-                        <Link
-                            href="/auth"
-                            className="block px-4 py-3 text-text-secondary hover:text-white hover:bg-bg-hover rounded-lg transition-colors"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Sign In
-                        </Link>
-                        <Link
-                            href="/dashboard"
-                            className="block px-4 py-3 bg-accent text-white rounded-lg text-center font-medium"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            Dashboard
-                        </Link>
+                        
+                        {isInitialized && user ? (
+                            <>
+                                <Link
+                                    href="/dashboard"
+                                    className="block px-4 py-3 text-text-secondary hover:text-white hover:bg-bg-hover rounded-lg transition-colors"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    Dashboard
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        handleLogout();
+                                        setIsMobileMenuOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                >
+                                    Sign Out
+                                </button>
+                            </>
+                        ) : (
+                            <Link
+                                href="/login"
+                                className="block px-4 py-3 bg-accent text-white rounded-lg text-center font-medium"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Sign In
+                            </Link>
+                        )}
                     </div>
                 </div>
             )}

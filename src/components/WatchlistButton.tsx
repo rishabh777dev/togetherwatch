@@ -10,7 +10,7 @@ interface WatchlistButtonProps {
         imdbID?: string;
         title?: string;
         name?: string;
-        poster_path: string;
+        poster_path: string | null;
         media_type?: 'movie' | 'tv';
         vote_average: number;
         release_date?: string;
@@ -46,7 +46,7 @@ export default function WatchlistButton({ item, variant = 'icon', className = ''
                 id: itemId,
                 imdbID: item.imdbID,
                 title: item.title || item.name || 'Untitled',
-                poster_path: item.poster_path,
+                poster_path: item.poster_path || '',
                 media_type: item.media_type || 'movie',
                 vote_average: item.vote_average || 0,
                 release_date: item.release_date || item.first_air_date,

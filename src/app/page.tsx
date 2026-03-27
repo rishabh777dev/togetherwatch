@@ -1,82 +1,87 @@
 import Footer from '@/components/Footer';
 import HeroCarousel from '@/components/HeroCarousel';
 import MovieRow from '@/components/MovieRow';
+import TopTenRow from '@/components/TopTenRow';
 import Navbar from '@/components/Navbar';
-import { getLatestReleases, getPopularMovies, getPopularTV, getTopRatedMovies, getTrending } from '@/lib/tmdb';
+import ContinueWatching from '@/components/ContinueWatching';
+import { 
+    getLatestReleases, 
+    getPopularMovies, 
+    getPopularTV, 
+    getTopRatedMovies, 
+    getTrending, 
+    getNetflixOriginals 
+} from '@/lib/tmdb';
 import Link from 'next/link';
 
 export default async function HomePage() {
-    // Fetch data
-    const [trending, latestReleases, popularMovies, popularTV, topRated] = await Promise.all([
+    // Fetch real TMDB dynamic data concurrently
+    const [trending, latestReleases, popularMovies, popularTV, topRated, netflix] = await Promise.all([
         getTrending(),
         getLatestReleases(),
         getPopularMovies(),
         getPopularTV(),
         getTopRatedMovies(),
+        getNetflixOriginals(),
     ]);
 
     return (
-        <main className="min-h-screen bg-bg-primary">
+        <main className="min-h-screen bg-bg-primary overflow-hidden">
             <Navbar />
 
-            {/* Hero Section */}
+            {/* Cineby-style Massive Hero (Using No. 1 Trending) */}
             <HeroCarousel movies={trending.slice(0, 5)} />
 
             {/* Content Rows */}
-            <div className="-mt-20 relative z-10">
+            <div className="-mt-32 xl:-mt-48 relative z-10 pb-20">
+                
+                {/* Your Continue Watching Row */}
+                <ContinueWatching />
+
+                {/* Top 10 Today - Posters with Giant Numbers Behind */}
+                <TopTenRow movies={trending} />
+
+                {/* Trending Today - Cinematic 16:9 Backdrops */}
                 <MovieRow
-                    title="Latest Releases"
-                    movies={latestReleases}
-                    mediaType="movie"
+                    title="Trending Today"
+                    movies={latestReleases.concat(popularTV).slice(0, 15)}
                 />
 
+                {/* Netflix Row - 16:9 Backdrops */}
                 <MovieRow
-                    title="Trending Now"
-                    movies={trending}
-                    mediaType="movie"
+                    title="Netflix"
+                    movies={netflix}
+                    mediaType="tv"
                 />
 
+                {/* Top Rated - 16:9 Backdrops */}
+                <MovieRow
+                    title="Top rated"
+                    movies={topRated}
+                    mediaType="movie"
+                />
+                
+                {/* Popular Movies - 16:9 Backdrops */}
                 <MovieRow
                     title="Popular Movies"
                     movies={popularMovies}
                     mediaType="movie"
                 />
 
-                <MovieRow
-                    title="Popular TV Shows"
-                    movies={popularTV}
-                    mediaType="tv"
-                />
-
-                <MovieRow
-                    title="Top Rated"
-                    movies={topRated}
-                    mediaType="movie"
-                />
             </div>
 
-            {/* CTA Section */}
-            <section className="py-20 my-12 hero-gradient">
+            {/* Call to action section */}
+            <section className="py-20 mt-12 hero-gradient border-t border-white/5">
                 <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 text-center">
-                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+                    <h2 className="text-3xl md:text-4xl font-bold mb-4">
                         Watch <span className="text-accent">Together</span>
                     </h2>
                     <p className="text-text-secondary text-lg max-w-2xl mx-auto mb-8">
-                        Create a watch room and invite your friends to enjoy movies and TV shows
-                        in perfect sync. Chat, react, and experience entertainment together.
+                        Experience the ultimate watch party. Sync your streams instantly and chat with friends in real-time.
                     </p>
-                    <div className="flex items-center justify-center gap-4 flex-wrap">
-                        <Link
-                            href="/room/create"
-                            className="btn-primary inline-flex items-center gap-2"
-                        >
-                            Create Watch Room
-                        </Link>
-                        <Link
-                            href="/dashboard"
-                            className="btn-ghost inline-flex items-center gap-2"
-                        >
-                            View Dashboard
+                    <div className="flex items-center justify-center gap-4">
+                        <Link href="/room/create" className="btn-primary">
+                            Create a Room
                         </Link>
                     </div>
                 </div>

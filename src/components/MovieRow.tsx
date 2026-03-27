@@ -18,7 +18,7 @@ export default function MovieRow({ title, movies, mediaType = 'movie' }: MovieRo
 
     const scroll = (direction: 'left' | 'right') => {
         if (rowRef.current) {
-            const scrollAmount = direction === 'left' ? -400 : 400;
+            const scrollAmount = direction === 'left' ? -rowRef.current.clientWidth / 1.5 : rowRef.current.clientWidth / 1.5;
             rowRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
         }
     };
@@ -26,33 +26,25 @@ export default function MovieRow({ title, movies, mediaType = 'movie' }: MovieRo
     if (!movies.length) return null;
 
     return (
-        <section className="py-6 md:py-8">
-            {/* Section Header */}
+        <section className="py-6 lg:py-8 w-full">
             <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 mb-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="section-title">{title}</h2>
+                    <div className="flex items-center gap-3">
+                        <div className="w-[3px] h-6 bg-accent rounded-full"></div>
+                        <h2 className="text-xl md:text-2xl font-bold tracking-tight">{title}</h2>
+                    </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => scroll('left')}
-                            className="p-2 rounded-lg bg-bg-secondary hover:bg-bg-hover transition-colors"
-                        >
+                        <button onClick={() => scroll('left')} className="p-2 rounded-full bg-black/50 hover:bg-white/10 transition-colors backdrop-blur-md">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <button
-                            onClick={() => scroll('right')}
-                            className="p-2 rounded-lg bg-bg-secondary hover:bg-bg-hover transition-colors"
-                        >
+                        <button onClick={() => scroll('right')} className="p-2 rounded-full bg-black/50 hover:bg-white/10 transition-colors backdrop-blur-md">
                             <ChevronRight className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Movie Row */}
-            <div
-                ref={rowRef}
-                className="row-container max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12"
-            >
+            <div ref={rowRef} className="row-container max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12">
                 {movies.map((movie) => (
                     <MovieCard key={movie.id} movie={movie} mediaType={mediaType} />
                 ))}
@@ -61,107 +53,71 @@ export default function MovieRow({ title, movies, mediaType = 'movie' }: MovieRo
     );
 }
 
-interface MovieCardProps {
-    movie: Movie;
-    mediaType: 'movie' | 'tv';
-}
-
-function MovieCard({ movie, mediaType }: MovieCardProps) {
+function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 'tv' }) {
     const router = useRouter();
     const title = movie.title || movie.name || '';
     const type = movie.media_type || mediaType;
+    const movieId = movie.id;
 
-    // Use IMDb ID if available, otherwise fall back to numeric ID
-    const movieId = movie.imdbID || movie.id;
-
-    const handleCardClick = () => {
-        router.push(`/watch/${type}/${movieId}`);
-    };
-
-    const handleWatchTogether = (e: React.MouseEvent) => {
+    const handleCardClick = () => router.push(`/watch/${type}/${movieId}`);
+    const handleAction = (e: React.MouseEvent, path: string) => {
         e.stopPropagation();
-        router.push(`/room/create?type=${type}&id=${movieId}`);
+        router.push(path);
     };
 
-    const handlePlay = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        router.push(`/watch/${type}/${movieId}`);
-    };
+    // Use backdrop if available, fallback to poster
+    const imagePath = movie.backdrop_path || movie.poster_path;
 
     return (
-        <div className="flex-shrink-0 w-[150px] md:w-[180px] group">
-            <div
-                onClick={handleCardClick}
-                className="poster-card aspect-[2/3] relative mb-2 cursor-pointer"
-            >
+        <div 
+            onClick={handleCardClick}
+            className="flex-shrink-0 w-[240px] md:w-[280px] lg:w-[320px] group relative rounded-xl overflow-hidden cursor-pointer bg-bg-secondary hover:scale-[1.03] transition-transform duration-300"
+        >
+            <div className="aspect-video relative w-full h-full">
                 <Image
-                    src={getImageUrl(movie.poster_path, 'w342')}
+                    src={getImageUrl(imagePath, 'w500')}
                     alt={title}
                     fill
-                    className="object-cover"
-                    sizes="180px"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    sizes="(max-width: 768px) 240px, (max-width: 1200px) 280px, 320px"
                 />
+                
+                {/* Always-on gradient for text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
 
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 
-                    transition-opacity duration-300 flex flex-col items-center justify-center gap-2">
-                    <button
-                        onClick={handlePlay}
-                        className="flex items-center justify-center w-12 h-12 rounded-full 
-                             bg-accent hover:bg-accent-light transition-colors"
-                    >
-                        <Play className="w-5 h-5 fill-white" />
-                    </button>
-                    <button
-                        onClick={handleWatchTogether}
-                        className="flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded-full
-                       hover:bg-white/20 transition-colors"
-                    >
-                        <Users className="w-3 h-3" />
-                        Watch Together
-                    </button>
+                {/* Top Tags */}
+                <div className="absolute top-2 left-2 flex gap-1">
+                    <span className="px-2 py-[2px] rounded uppercase text-[10px] font-bold bg-white/20 backdrop-blur-md text-white border border-white/10">
+                        {type === 'movie' ? 'MOVIE' : 'TV SHOW'}
+                    </span>
                 </div>
-
-                {/* Watchlist Button - Top Right */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <WatchlistButton
-                        item={{
-                            id: movieId,
-                            imdbID: movie.imdbID,
-                            title: title,
-                            poster_path: movie.poster_path,
-                            media_type: type,
-                            vote_average: movie.vote_average,
-                            release_date: movie.release_date,
-                            first_air_date: movie.first_air_date,
-                        }}
-                        variant="icon"
-                    />
-                </div>
-
-                {/* Rating Badge */}
+                
                 {movie.vote_average > 0 && (
-                    <div className="absolute top-2 left-2 rating text-xs">
-                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                    <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-[2px] rounded text-[11px] font-bold bg-black/60 backdrop-blur-md text-white border border-white/10">
+                        <Star className="w-[10px] h-[10px] fill-accent text-accent" />
                         {movie.vote_average.toFixed(1)}
                     </div>
                 )}
-            </div>
 
-            {/* Title */}
-            <h3
-                onClick={handleCardClick}
-                className="text-sm font-medium truncate group-hover:text-accent transition-colors cursor-pointer"
-            >
-                {title}
-            </h3>
-            <p className="text-xs text-text-muted">
-                {movie.release_date
-                    ? new Date(movie.release_date).getFullYear()
-                    : movie.first_air_date
-                        ? new Date(movie.first_air_date).getFullYear()
-                        : ''}
-            </p>
+                {/* Bottom Title */}
+                <div className="absolute bottom-3 left-3 right-3">
+                    <h3 className="text-sm md:text-base font-bold text-white line-clamp-2 leading-tight">
+                        {title}
+                    </h3>
+                </div>
+
+                {/* Hover Play Overlay */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <button className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/90 hover:bg-accent transition-colors shadow-lg shadow-accent/20">
+                        <Play className="w-5 h-5 fill-white ml-1" />
+                    </button>
+                </div>
+
+                {/* Top Right Watchlist - Only on hover */}
+                <div className="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <WatchlistButton item={{...movie, media_type: type}} variant="icon" />
+                </div>
+            </div>
         </div>
     );
 }

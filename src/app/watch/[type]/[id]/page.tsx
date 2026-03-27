@@ -1,24 +1,17 @@
 'use client';
 
 import Navbar from '@/components/Navbar';
-import { getEpisodesForSeason, getImageUrl, getMovieDetails, getTVDetails, Movie } from '@/lib/tmdb';
+import ActorsRow from '@/components/ActorsRow';
+import RecommendationsGrid from '@/components/RecommendationsGrid';
+import { getEpisodesForSeason, getImageUrl, getMovieDetails, getTVDetails, Movie, Episode } from '@/lib/tmdb';
 import { getEmbedUrl, videoSources } from '@/lib/videoSources';
 import { Calendar, ChevronDown, Clock, Play, Star, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-
-interface Episode {
-    id: number;
-    episode_number: number;
-    name: string;
-    overview: string;
-    still_path: string;
-    air_date: string;
-    runtime: number;
-    imdbRating?: number;
-}
+import { useEffect, useState, useRef } from 'react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { supabase } from '@/lib/supabase';
 
 export default function WatchPage() {
     const params = useParams();
@@ -31,11 +24,13 @@ export default function WatchPage() {
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedSource, setSelectedSource] = useState('vidking');
+    const [startProgress, setStartProgress] = useState<number>(0);
+    const lastSavedTime = useRef<number>(0);
+    const { user } = useAuthStore();
 
     useEffect(() => {
         if (!idParam) return;
 
-        // Compute id inside the effect to avoid dependency array size changes
         const isImdb = idParam.startsWith('tt');
         const resolvedId = isImdb ? idParam : Number(idParam);
 
@@ -47,8 +42,7 @@ export default function WatchPage() {
                 setMedia(data);
 
                 if (type === 'tv' && data?.seasons && data.seasons.length > 0) {
-                    // Pass IMDb ID if available to OMDb
-                    const tvIdForEpisodes = data.imdbID || (typeof resolvedId === 'number' ? resolvedId : idParam);
+                    const tvIdForEpisodes = typeof resolvedId === 'number' ? resolvedId : data.id;
                     const eps = await getEpisodesForSeason(tvIdForEpisodes, selectedSeason);
                     setEpisodes(eps);
                 }
@@ -62,18 +56,100 @@ export default function WatchPage() {
         fetchData();
     }, [idParam, type, selectedSeason]);
 
-    // VidKing can handle IMDb IDs, restoring the correct ID mapping
+    useEffect(() => {
+        if (!user || !media) return;
+        const embedId = media?.imdbID || idParam;
+
+        const loadProgress = async () => {
+            const { data, error } = await supabase
+                .from('watch_progress')
+                .select('timestamp')
+                .eq('user_id', user.id)
+                .eq('media_id', String(embedId))
+                .eq('media_type', type)
+                .eq('season', selectedSeason || 0)
+                .eq('episode', selectedEpisode || 0)
+                .single();
+            
+            if (!error && data && data.timestamp > 0) {
+                setStartProgress(Math.floor(data.timestamp));
+            }
+        };
+        
+        loadProgress();
+    }, [user, media, idParam, type, selectedSeason, selectedEpisode]);
+
+    useEffect(() => {
+        if (!user || !media) return;
+        const embedId = media?.imdbID || idParam;
+
+        const handleMessage = async (event: MessageEvent) => {
+            try {
+                let data = event.data;
+                if (typeof data === 'string') data = JSON.parse(data);
+
+                if (data && data.type === 'PLAYER_EVENT' && data.data?.event === 'timeupdate') {
+                    const currentTime = data.data.position || data.data.currentTime;
+                    const duration = data.data.duration;
+                    
+                    if (currentTime && duration && Math.abs(currentTime - lastSavedTime.current) > 10) {
+                        lastSavedTime.current = currentTime;
+                        const progressPercent = (currentTime / duration) * 100;
+                        
+                        const payload = {
+                            user_id: user.id,
+                            media_id: String(embedId),
+                            media_type: type,
+                            season: selectedSeason || 0,
+                            episode: selectedEpisode || 0,
+                            progress: progressPercent,
+                            timestamp: currentTime,
+                            duration: duration,
+                            updated_at: new Date().toISOString()
+                        };
+
+                        const { data: existing } = await supabase
+                            .from('watch_progress')
+                            .select('id')
+                            .eq('user_id', user.id)
+                            .eq('media_id', String(embedId))
+                            .eq('media_type', type)
+                            .eq('season', selectedSeason || 0)
+                            .eq('episode', selectedEpisode || 0)
+                            .single();
+
+                        if (existing) {
+                            await supabase.from('watch_progress').update(payload).eq('id', existing.id);
+                        } else {
+                            await supabase.from('watch_progress').insert(payload);
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore parsing errors
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [user, media, idParam, type, selectedSeason, selectedEpisode]);
+
     const embedId = media?.imdbID || idParam;
-    const embedUrl = type === 'movie'
+    let baseEmbedUrl = type === 'movie'
         ? getEmbedUrl(selectedSource, 'movie', String(embedId))
         : getEmbedUrl(selectedSource, 'tv', String(embedId), selectedSeason, selectedEpisode);
 
+    if (startProgress > 10) {
+        baseEmbedUrl += `${baseEmbedUrl.includes('?') ? '&' : '?'}t=${startProgress}&progress=${startProgress}`;
+    }
+    const embedUrl = baseEmbedUrl;
+
     if (isLoading) {
         return (
-            <main className="min-h-screen bg-[#0a0a0a]">
+            <main className="min-h-screen bg-[#0b0b0b]">
                 <Navbar />
                 <div className="pt-20 flex items-center justify-center h-[80vh]">
-                    <div className="w-12 h-12 border-4 border-[#0dcaf0] border-t-transparent rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
                 </div>
             </main>
         );
@@ -81,10 +157,10 @@ export default function WatchPage() {
 
     if (!media) {
         return (
-            <main className="min-h-screen bg-[#0a0a0a]">
+            <main className="min-h-screen bg-[#0b0b0b]">
                 <Navbar />
-                <div className="pt-20 flex items-center justify-center h-[80vh]">
-                    <p className="text-gray-500">Content not found</p>
+                <div className="pt-20 flex items-center justify-center h-[80vh] text-white/50 text-xl font-medium">
+                    Content not found
                 </div>
             </main>
         );
@@ -98,12 +174,12 @@ export default function WatchPage() {
             : '';
 
     return (
-        <main className="min-h-screen bg-[#0a0a0a] text-gray-200 selection:bg-[#0dcaf0]/30 selection:text-white">
+        <main className="min-h-screen bg-[#0b0b0b] text-text-primary selection:bg-accent/30 selection:text-white">
             <Navbar />
 
-            <div className="pt-16 max-w-[1800px] mx-auto">
-                {/* Premium Edge-to-Edge Player Section (Cineby style) */}
-                <div className="w-full aspect-video bg-black relative border-b border-white/5 shadow-2xl overflow-hidden">
+            {/* Premium Edge-to-Edge Player Section with matching background */}
+            <div className="pt-16 max-w-[1800px] mx-auto w-full relative">
+                <div className="w-full aspect-video bg-black relative border-b border-white/5 shadow-2xl overflow-hidden z-10">
                     <iframe
                         key={`${selectedSource}-${embedId}-${selectedSeason}-${selectedEpisode}`}
                         src={embedUrl}
@@ -115,76 +191,62 @@ export default function WatchPage() {
                 </div>
 
                 {/* Server Selector Area */}
-                <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 lg:px-12 py-4 bg-[#0d0d0d] border-b border-white/5">
-                    <span className="text-sm font-semibold text-gray-500 uppercase tracking-widest mr-2">Servers</span>
+                <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 lg:px-12 py-5 bg-[#111] border-b border-white/5 relative z-20">
+                    <span className="text-sm font-bold text-white/40 uppercase tracking-[0.2em] mr-2">Servers</span>
                     {videoSources.map(source => (
                         <button
                             key={source.id}
                             onClick={() => setSelectedSource(source.id)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300
                                 ${selectedSource === source.id 
-                                ? 'bg-[#0dcaf0]/15 text-[#0dcaf0] ring-1 ring-[#0dcaf0]/50 shadow-[0_0_15px_rgba(13,202,240,0.15)]' 
-                                : 'bg-[#1a1a1a] text-gray-400 hover:bg-[#222] hover:text-white ring-1 ring-white/5 shadow-sm'}`}
+                                ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105' 
+                                : 'bg-[#1a1a1a] text-white/60 hover:bg-white/10 hover:text-white border border-white/5'}`}
                         >
                             <span>{source.icon}</span>
                             {source.name}
                         </button>
                     ))}
+                    <div className="ml-auto">
+                        <Link
+                            href={`/room/create?type=${type}&id=${embedId}${type === 'tv' ? `&s=${selectedSeason}&e=${selectedEpisode}` : ''}`}
+                            className="bg-accent/20 text-accent hover:bg-accent/30 flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border border-accent/20"
+                        >
+                            <Users className="w-4 h-4" />
+                            Watch Together
+                        </Link>
+                    </div>
                 </div>
 
-                {/* Content Section below player */}
-                <div className="px-4 sm:px-6 lg:px-12 py-10 flex flex-col lg:flex-row gap-12">
-                    {/* Left side: Poster (optional in cineby, but sleek) */}
-                    <div className="hidden lg:block w-[280px] shrink-0">
-                         <div className="relative aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 group">
-                            {media.poster_path ? (
-                                <Image
-                                    src={getImageUrl(media.poster_path)}
-                                    alt={title || ''}
-                                    fill
-                                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                                    sizes="280px"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-neutral-900 flex items-center justify-center text-gray-600">No Image</div>
-                            )}
-                         </div>
-                         <Link
-                             href={`/room/create?type=${type}&id=${embedId}${type === 'tv' ? `&s=${selectedSeason}&e=${selectedEpisode}` : ''}`}
-                             className="mt-6 w-full py-4 bg-[#0dcaf0]/10 text-[#0dcaf0] hover:bg-[#0dcaf0]/20 rounded-xl flex items-center justify-center gap-2 font-bold transition-all border border-[#0dcaf0]/20 shadow-[0_0_20px_rgba(13,202,240,0.1)] hover:shadow-[0_0_30px_rgba(13,202,240,0.2)]"
-                         >
-                             <Users className="w-5 h-5" />
-                             Watch Together
-                         </Link>
-                    </div>
-
-                    {/* Right side: Info and Episodes */}
+                {/* Split Context Section (Info + Episodes Sidebar) */}
+                <div className="px-4 sm:px-6 lg:px-12 py-10 flex flex-col xl:flex-row gap-12 max-w-[1800px] mx-auto">
+                    
+                    {/* Left side: Info, Genres, Actors, Recommendations */}
                     <div className="flex-1 min-w-0">
-                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-white tracking-tight leading-tight">
+                        {/* Title & Meta */}
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-4 text-white tracking-tight uppercase drop-shadow-lg">
                             {title}
                         </h1>
                         
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-8 font-medium">
+                        <div className="flex flex-wrap items-center gap-4 text-sm font-bold text-white/70 mb-8">
                             {media.vote_average > 0 && (
-                                <span className="flex items-center gap-1.5 bg-yellow-500/10 text-yellow-500 px-3 py-1.5 rounded-full ring-1 ring-yellow-500/20">
+                                <span className="flex items-center gap-1.5 text-yellow-500">
                                     <Star className="w-4 h-4 fill-yellow-500" />
                                     {media.vote_average.toFixed(1)}
                                 </span>
                             )}
                             {releaseYear && (
-                                <span className="flex items-center gap-1.5 px-4 py-1.5 bg-white/5 rounded-full ring-1 ring-white/10 text-gray-300">
-                                    <Calendar className="w-4 h-4" />
-                                    {releaseYear}
-                                </span>
+                                <>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                                    <span>{releaseYear}</span>
+                                </>
                             )}
                             {media.runtime && media.runtime > 0 && (
-                                <span className="flex items-center gap-1.5 px-4 py-1.5 bg-white/5 rounded-full ring-1 ring-white/10 text-gray-300">
-                                    <Clock className="w-4 h-4" />
-                                    {media.runtime >= 60
-                                        ? `${Math.floor(media.runtime / 60)}h ${media.runtime % 60}m`
-                                        : `${media.runtime}m`
-                                    }
-                                </span>
+                                <>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                                    <span>
+                                        {media.runtime >= 60 ? `${Math.floor(media.runtime / 60)}h ${media.runtime % 60}m` : `${media.runtime}m`}
+                                    </span>
+                                </>
                             )}
                         </div>
 
@@ -194,7 +256,7 @@ export default function WatchPage() {
                                 {media.genres.map((genre) => (
                                     <span
                                         key={genre.id}
-                                        className="px-4 py-1.5 border border-white/10 rounded-full text-sm text-gray-300 bg-white/5 hover:bg-white/10 hover:text-white transition-colors cursor-default"
+                                        className="px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase text-white/80 bg-white/10 border border-white/5 backdrop-blur-sm"
                                     >
                                         {genre.name}
                                     </span>
@@ -202,86 +264,102 @@ export default function WatchPage() {
                             </div>
                         )}
 
-                        <p className="text-gray-400 leading-relaxed text-lg max-w-4xl mb-12">
+                        <p className="text-white/60 leading-relaxed text-lg max-w-4xl mb-12 font-medium">
                             {media.overview}
                         </p>
 
-                        {/* TV Show Episodes */}
-                        {type === 'tv' && media.seasons && media.seasons.length > 0 && (
-                            <div className="mt-8">
-                                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
-                                    <h3 className="text-2xl font-bold text-white tracking-tight">Episodes</h3>
-                                    <div className="relative">
-                                        <select
-                                            value={selectedSeason}
-                                            onChange={(e) => {
-                                                setSelectedSeason(Number(e.target.value));
-                                                setSelectedEpisode(1);
-                                            }}
-                                            className="appearance-none px-5 py-2.5 pr-12 bg-[#111] border border-white/10 text-white rounded-xl cursor-pointer outline-none focus:border-[#0dcaf0] focus:ring-1 focus:ring-[#0dcaf0] transition-all font-medium min-w-[180px]"
-                                        >
-                                            {media.seasons.map((season) => (
-                                                <option key={season.id} value={season.season_number}>
-                                                    {season.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                                    </div>
-                                </div>
+                        {/* Injected Actors Component */}
+                        <ActorsRow cast={media.credits?.cast} />
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {episodes.length === 0 ? (
-                                        <div className="col-span-full py-12 text-gray-600 font-medium">
-                                            Loading episodes...
-                                        </div>
-                                    ) : (
-                                        episodes.map((ep) => (
+                        {/* Injected Recommendations Component */}
+                        <RecommendationsGrid recommendations={media.recommendations?.results} currentType={type} />
+                    </div>
+
+                    {/* Right side: Modern Cineby Episode Sidebar */}
+                    {type === 'tv' && media.seasons && media.seasons.length > 0 && (
+                        <div className="w-full xl:w-[450px] shrink-0 xl:sticky xl:top-[100px] xl:h-[calc(100vh-120px)] overflow-y-auto no-scrollbar pb-10">
+                            <div className="flex items-center justify-between mb-6 sticky top-0 bg-[#0b0b0b]/95 backdrop-blur-xl py-4 z-10 border-b border-white/5">
+                                <h3 className="text-xl font-bold tracking-widest uppercase text-white">Episodes</h3>
+                                <div className="relative">
+                                    <select
+                                        value={selectedSeason}
+                                        onChange={(e) => {
+                                            setSelectedSeason(Number(e.target.value));
+                                            setSelectedEpisode(1);
+                                        }}
+                                        className="appearance-none px-4 py-2 pr-10 bg-[#1a1a1a] border border-white/10 text-white rounded-lg cursor-pointer outline-none focus:border-white/40 transition-all font-bold text-sm tracking-wider uppercase"
+                                    >
+                                        {media.seasons.map((season) => (
+                                            <option key={season.id} value={season.season_number}>
+                                                {season.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none" />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                {episodes.length === 0 ? (
+                                    <div className="py-12 text-center text-white/40 font-bold uppercase tracking-widest text-sm">
+                                        Loading...
+                                    </div>
+                                ) : (
+                                    episodes.map((ep) => {
+                                        const isSelected = selectedEpisode === ep.episode_number;
+                                        return (
                                             <button
                                                 key={ep.id}
                                                 onClick={() => setSelectedEpisode(ep.episode_number)}
-                                                className={`flex items-center gap-4 p-3 rounded-xl transition-all text-left group
-                                                    ${selectedEpisode === ep.episode_number
-                                                    ? 'bg-[#0dcaf0]/10 border border-[#0dcaf0]/30 shadow-[0_4px_20px_rgba(13,202,240,0.15)] ring-1 ring-[#0dcaf0]/50'
-                                                    : 'bg-[#111] hover:bg-[#1a1a1a] border border-white/5 hover:border-white/10'
-                                                    }`}
+                                                className={`relative w-full aspect-[21/9] rounded-xl overflow-hidden group transition-all duration-300 text-left cursor-pointer border ${
+                                                    isSelected ? 'border-white ring-2 ring-white/20 scale-[1.02] shadow-[0_0_30px_rgba(255,255,255,0.1)]' : 'border-transparent hover:border-white/20'
+                                                }`}
                                             >
-                                                <div className="w-14 h-14 shrink-0 rounded-lg bg-[#1a1a1a] flex items-center justify-center font-bold text-gray-400 group-hover:text-white transition-colors relative overflow-hidden ring-1 ring-white/5">
-                                                    <span className={selectedEpisode === ep.episode_number ? 'opacity-0' : 'opacity-100'}>
-                                                        {ep.episode_number}
-                                                    </span>
-                                                    {(selectedEpisode === ep.episode_number || true) && (
-                                                        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300
-                                                            ${selectedEpisode === ep.episode_number ? 'opacity-100 bg-[#0dcaf0]' : 'opacity-0 group-hover:opacity-100 bg-white/10'}`}>
-                                                            <Play className={`w-5 h-5 ${selectedEpisode === ep.episode_number ? 'fill-black text-black' : 'fill-white text-white translate-x-0.5'}`} />
-                                                        </div>
+                                                {/* Background Thumbnail */}
+                                                <div className="absolute inset-0 z-0">
+                                                    {ep.still_path ? (
+                                                        <Image src={getImageUrl(ep.still_path, 'w300')} alt={ep.name} fill className={`object-cover transition-transform duration-700 ${isSelected ? 'scale-105' : 'group-hover:scale-105 opacity-60'}`} />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-[#111]" />
                                                     )}
+                                                    {/* Cineby specific transparent fade */}
+                                                    <div className={`absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent transition-opacity ${isSelected ? 'opacity-90' : 'opacity-80'}`} />
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className={`font-medium truncate transition-colors ${selectedEpisode === ep.episode_number ? 'text-[#0dcaf0]' : 'text-gray-200 group-hover:text-white'}`}>
-                                                        {ep.name}
-                                                    </h4>
-                                                    <p className="text-xs text-gray-500 mt-1 font-medium">
-                                                        {ep.air_date ? new Date(ep.air_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : `Episode ${ep.episode_number}`}
+
+                                                {/* Content overlays the thumbnail */}
+                                                <div className="relative z-10 w-full h-full p-4 flex flex-col justify-end">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        {isSelected && <span className="px-1.5 py-0.5 bg-accent text-white rounded text-[9px] font-black uppercase tracking-wider">Watching</span>}
+                                                        <span className={`text-xs font-bold uppercase tracking-widest ${isSelected ? 'text-white' : 'text-white/60'}`}>
+                                                            {ep.episode_number}.
+                                                        </span>
+                                                        <h4 className={`text-sm md:text-base font-bold uppercase tracking-wide truncate ${isSelected ? 'text-white' : 'text-white/90 group-hover:text-white'}`}>
+                                                            {ep.name}
+                                                        </h4>
+                                                    </div>
+                                                    
+                                                    {ep.runtime > 0 && (
+                                                        <span className="text-[10px] font-bold text-white/50 mb-1 tracking-widest uppercase">
+                                                            {ep.runtime} min
+                                                        </span>
+                                                    )}
+                                                    
+                                                    <p className="text-xs text-white/60 line-clamp-2 md:line-clamp-1 font-medium leading-relaxed max-w-[90%]">
+                                                        {ep.overview || "No description available."}
                                                     </p>
                                                 </div>
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        )}
 
-                        <div className="lg:hidden mt-10">
-                             <Link
-                                 href={`/room/create?type=${type}&id=${embedId}${type === 'tv' ? `&s=${selectedSeason}&e=${selectedEpisode}` : ''}`}
-                                 className="w-full py-4 bg-[#0dcaf0]/10 text-[#0dcaf0] hover:bg-[#0dcaf0]/20 rounded-xl flex items-center justify-center gap-2 font-bold transition-all border border-[#0dcaf0]/20 shadow-[0_0_20px_rgba(13,202,240,0.1)]"
-                             >
-                                 <Users className="w-5 h-5" />
-                                 Watch Together
-                             </Link>
+                                                {/* Dim overlay if not selected */}
+                                                {!isSelected && (
+                                                    <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors z-20" />
+                                                )}
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </main>

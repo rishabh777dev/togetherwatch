@@ -16,27 +16,19 @@ export interface VideoSource {
 }
 
 export const videoSources: VideoSource[] = [
+
     {
-        id: 'vidking',
-        name: 'VidKing',
-        description: 'Endless content video player',
-        features: ['AutoPlay', 'Next Episode', 'Episode Selection'],
-        icon: '👑',
-        getEmbedUrl: (mediaType, mediaId, season, episode) =>
-            mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://www.vidking.net/embed/tv/${mediaId}/${season}/${episode}?color=0dcaf0&autoPlay=true&nextEpisode=true&episodeSelector=true`
-                : `https://www.vidking.net/embed/${mediaType}/${mediaId}?color=0dcaf0&autoPlay=true`
-    },
-    {
-        id: 'vidsrc',
-        name: 'VidSrc TO',
-        description: 'Default server - Reliable English content',
-        features: ['English', 'Subtitles', 'HD'],
-        icon: '⭐',
-        getEmbedUrl: (mediaType, mediaId, season, episode) =>
-            mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.to/embed/tv/${mediaId}/${season}/${episode}`
-                : `https://vidsrc.to/embed/${mediaType}/${mediaId}`
+        id: 'vidlink',
+        name: 'VidLink PRO',
+        description: 'Premium auto-syncing player',
+        features: ['Auto-Sync', 'HD', 'Fast'],
+        icon: '⚡',
+        getEmbedUrl: (mediaType, mediaId, season, episode) => {
+            const idParam = String(mediaId);
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidlink.pro/tv/${idParam}/${season}/${episode}?primaryColor=E50914&autoplay=false`
+                : `https://vidlink.pro/movie/${idParam}?primaryColor=E50914&autoplay=false`;
+        }
     },
     {
         id: 'vidsrcme',
@@ -84,7 +76,7 @@ export function getSourceById(id: string): VideoSource | undefined {
 
 // Get default source
 export function getDefaultSource(): VideoSource {
-    return videoSources[0]; // vidsrc
+    return videoSources.find(s => s.id === 'vidsrcme') || videoSources[0];
 }
 
 // Get embed URL for a source

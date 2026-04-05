@@ -22,52 +22,50 @@ export interface Room {
     media_title: string | null;
     selected_source: string; // Video source ID (vidsrc, vidking, etc.)
     created_at: string;
-}
-
-// Generate a unique 6-character room code
-function generateRoomCode(): string {
-    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoiding confusing chars like 0, O, I, 1
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return code;
+    // New Public Directory Fields
+    is_public: boolean;
+    host_name: string;
+    host_avatar: string | null;
+    started_at: string;
 }
 
 // Create a new room
 export async function createRoom(data: {
+    code: string; // User-defined code/password
     name: string;
     hostId: string;
+    hostName: string;
+    hostAvatar?: string | null;
     mediaId: string;
     mediaType: 'movie' | 'tv';
     mediaTitle?: string;
+    isPublic: boolean;
 }): Promise<{ room: Room | null; error: string | null }> {
-    // Generate unique code (with retry logic)
-    let code = generateRoomCode();
-    let attempts = 0;
-    const maxAttempts = 5;
+    
+    // Check if the custom code is already taken by a live room
+    const { data: existingRoom } = await supabase
+        .from('rooms')
+        .select('code')
+        .eq('code', data.code.toUpperCase())
+        .single();
 
-    while (attempts < maxAttempts) {
-        const { data: existingRoom } = await supabase
-            .from('rooms')
-            .select('code')
-            .eq('code', code)
-            .single();
-
-        if (!existingRoom) break;
-        code = generateRoomCode();
-        attempts++;
+    if (existingRoom) {
+        return { room: null, error: 'Room Code is already taken. Choose another one.' };
     }
 
     const { data: room, error } = await supabase
         .from('rooms')
         .insert({
-            code,
+            code: data.code.toUpperCase(),
             name: data.name,
             host_id: data.hostId,
+            host_name: data.hostName,
+            host_avatar: data.hostAvatar || null,
             media_id: data.mediaId,
             media_type: data.mediaType,
             media_title: data.mediaTitle || null,
+            is_public: data.isPublic,
+            started_at: new Date().toISOString()
         })
         .select()
         .single();
@@ -272,4 +270,38 @@ export function subscribeToRoomSource(
                 console.error('[Source] Subscription error:', err);
             }
         });
+}
+
+// Get active public rooms
+export async function getPublicRooms(): Promise<{ rooms: Room[] | null; error: string | null }> {
+    const { data: rooms, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('is_public', true)
+        .order('started_at', { ascending: false })
+        .limit(20);
+
+    if (error) {
+        console.error('Error fetching public rooms:', error);
+        return { rooms: null, error: error.message };
+    }
+
+    return { rooms, error: null };
+}
+
+// Get user watch progress tracking (to use as recent sessions on dashboard)
+export async function getUserSessions(userId: string) {
+    const { data: sessions, error } = await supabase
+        .from('watch_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(10);
+
+    if (error) {
+        console.error('Error fetching user sessions:', error);
+        return { sessions: [], error: error.message };
+    }
+
+    return { sessions, error: null };
 }

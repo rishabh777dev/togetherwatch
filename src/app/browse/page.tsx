@@ -295,6 +295,7 @@ function BrowseContent() {
                                                     src={anime.coverImage.large}
                                                     alt={anime.title.english || anime.title.romaji}
                                                     fill
+                                                    sizes="(max-width: 768px) 100vw, 300px"
                                                     className="object-cover"
                                                 />
 
@@ -343,6 +344,7 @@ function BrowseContent() {
                                                     src={getImageUrl(item.poster_path)}
                                                     alt={item.title || item.name || ''}
                                                     fill
+                                                    sizes="(max-width: 768px) 100vw, 300px"
                                                     className="object-cover"
                                                 />
 

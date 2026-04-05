@@ -4,51 +4,71 @@ import Navbar from '@/components/Navbar';
 import { getOrCreateUserId, markRoomAsHosted } from '@/lib/session';
 import { useRoomStore } from '@/lib/store';
 import { createRoom } from '@/lib/supabase';
-import { getImageUrl, Movie, searchMulti } from '@/lib/tmdb';
-import { ArrowLeft, ChevronRight, Film, Loader2, Play, Search, Tv, Users } from 'lucide-react';
+import { getImageUrl, getMovieDetails, getTVDetails, Movie, searchMulti } from '@/lib/tmdb';
+import { useAuthStore } from '@/store/useAuthStore';
+import { ArrowLeft, Edit2, Film, Loader2, Search, Tv, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState, useRef } from 'react';
 
-function CreateRoomContent() {
+function CreateRoomModal() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const preselectedType = searchParams.get('type') as 'movie' | 'tv' | null;
     const preselectedId = searchParams.get('id');
 
+    const { user } = useAuthStore();
     const { setRoomId, setRoomName, setIsHost, setMedia } = useRoomStore();
 
-    const [roomName, setRoomNameLocal] = useState('Movie Night');
+    const [selectedMedia, setSelectedMedia] = useState<Movie | null>(null);
+    const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+    
+    // Search State
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Movie[]>([]);
     const [isSearching, setIsSearching] = useState(false);
-    const [selectedMedia, setSelectedMedia] = useState<Movie | null>(null);
+    
+    const [roomName, setRoomNameLocal] = useState('');
+    const [roomCode, setRoomCode] = useState('');
+    const [isPublic, setIsPublic] = useState(true);
+    
     const [isCreating, setIsCreating] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+    const listRef = useRef<HTMLDivElement>(null);
 
-    // If we have a preselected ID, fetch its details
+    // Fetch rich media details if preselected id exists
     useEffect(() => {
-        if (preselectedId && preselectedType) {
-            setSelectedMedia({
-                id: 0,
-                imdbID: preselectedId,
-                title: 'Selected Content',
-                poster_path: '',
-                backdrop_path: '',
-                overview: '',
-                vote_average: 0,
-                media_type: preselectedType,
-            });
-        }
+        if (!preselectedId || !preselectedType) return;
+        
+        const fetchMedia = async () => {
+            setIsLoadingMedia(true);
+            try {
+                const resolvedId = preselectedId.startsWith('tt') ? preselectedId : Number(preselectedId);
+                const data = preselectedType === 'movie' 
+                    ? await getMovieDetails(resolvedId)
+                    : await getTVDetails(resolvedId);
+                    
+                if (data) {
+                    setSelectedMedia(data);
+                    setRoomNameLocal(data.title || data.name || 'Watch Party');
+                }
+            } catch (err) {
+                console.error("Error fetching media for room creation", err);
+            } finally {
+                setIsLoadingMedia(false);
+            }
+        };
+
+        fetchMedia();
     }, [preselectedId, preselectedType]);
 
-    // Debounced search
+    // Live Search
     const performSearch = useCallback(async (query: string) => {
         if (!query.trim()) {
             setSearchResults([]);
             return;
         }
-
         setIsSearching(true);
         try {
             const results = await searchMulti(query);
@@ -68,33 +88,64 @@ function CreateRoomContent() {
         return () => clearTimeout(timer);
     }, [searchQuery, performSearch]);
 
+    const handleSelectMedia = (media: Movie) => {
+        setSelectedMedia(media);
+        setRoomNameLocal(media.title || media.name || '');
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    // Auto close search dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (listRef.current && !listRef.current.contains(e.target as Node)) {
+                setSearchResults([]);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Generate a random generic code if user doesn't bother specifying one
+    const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const handleCreateRoom = async () => {
-        if (!roomName.trim()) return;
+        setErrorMsg('');
+        if (!roomName.trim()) {
+            setErrorMsg('Please enter a room name.');
+            return;
+        }
 
         setIsCreating(true);
 
-        const mediaId = selectedMedia?.imdbID || preselectedId || '';
+        const mediaId = selectedMedia?.imdbID || selectedMedia?.id;
         const mediaType = selectedMedia?.media_type || preselectedType || 'movie';
+        const finalCode = roomCode.trim() ? roomCode.trim().toUpperCase() : generateCode();
 
         try {
-            // Create room in Supabase
-            const userId = getOrCreateUserId();
+            const userId = user?.id || getOrCreateUserId();
+            const hostName = user?.user_metadata?.name || 'Anonymous Host';
+            const hostAvatar = user?.email ? user.email[0].toUpperCase() : 'A';
+
             const { room, error } = await createRoom({
+                code: finalCode,
                 name: roomName,
                 hostId: userId,
-                mediaId: mediaId,
-                mediaType: mediaType,
+                hostName: hostName,
+                hostAvatar: hostAvatar,
+                mediaId: String(mediaId),
+                mediaType: mediaType as 'movie' | 'tv',
                 mediaTitle: selectedMedia?.title || selectedMedia?.name,
+                isPublic: isPublic,
             });
 
             if (error || !room) {
-                console.error('Failed to create room:', error);
+                setErrorMsg(error || 'Failed to create room. Please try again.');
                 setIsCreating(false);
-                alert('Failed to create room. Please try again.');
                 return;
             }
 
-            // Set up room state
+            // Centralized Store Mapping
             setRoomId(room.code);
             setRoomName(room.name);
             setIsHost(true);
@@ -104,213 +155,195 @@ function CreateRoomContent() {
                 const embedUrl = mediaType === 'tv'
                     ? `https://vidsrc.to/embed/tv/${mediaId}`
                     : `https://vidsrc.to/embed/movie/${mediaId}`;
-                setMedia(embedUrl, mediaType, selectedMedia.id);
+                setMedia(embedUrl, mediaType as 'movie' | 'tv', Number(selectedMedia.id));
             }
 
-            // Navigate to room using the simple code
             router.push(`/room/${room.code}`);
         } catch (err) {
             console.error('Error creating room:', err);
+            setErrorMsg('An unexpected error occurred.');
             setIsCreating(false);
-            alert('Failed to create room. Please try again.');
         }
     };
 
     return (
-        <main className="min-h-screen bg-bg-primary">
-            <Navbar />
+        <div className="w-full max-w-2xl bg-[#0d0d0d] border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-visible relative">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/5">
+                <h2 className="text-xl font-bold text-white tracking-wide">Create Room</h2>
+                <button onClick={() => router.back()} className="text-white/40 hover:text-white transition-colors">
+                    <X className="w-6 h-6" />
+                </button>
+            </div>
 
-            <div className="pt-24 pb-12 px-4">
-                <div className="max-w-2xl mx-auto">
-                    {/* Back */}
-                    <Link
-                        href="/dashboard"
-                        className="inline-flex items-center gap-2 text-text-secondary hover:text-white transition-colors mb-8"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to Dashboard
-                    </Link>
-
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <h1 className="font-bold text-4xl mb-2">Create Watch Room</h1>
-                        <p className="text-text-secondary">Set up your watch party and invite friends</p>
+            <div className="p-6 md:p-8 space-y-8">
+                {errorMsg && (
+                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-semibold">
+                        {errorMsg}
                     </div>
+                )}
 
-                    {/* Form */}
-                    <div className="bg-bg-card border border-border rounded-2xl p-6 space-y-6">
-                        {/* Room Name */}
-                        <div>
-                            <label className="block text-sm text-text-secondary mb-2">Room Name</label>
+                {/* Media Selection Banner */}
+                {isLoadingMedia ? (
+                    <div className="h-28 w-full bg-white/5 animate-pulse rounded-xl flex items-center justify-center border border-white/10">
+                        <Loader2 className="w-6 h-6 animate-spin text-white/30" />
+                    </div>
+                ) : selectedMedia ? (
+                    <div className="flex items-center justify-between p-4 bg-[#141414] border border-white/5 rounded-xl">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-24 rounded-lg overflow-hidden bg-black relative border border-white/10 shrink-0">
+                                {selectedMedia.poster_path ? (
+                                    <Image
+                                        src={getImageUrl(selectedMedia.poster_path, 'w185')!}
+                                        alt={selectedMedia.title || ''}
+                                        fill
+                                        sizes="64px"
+                                        className="object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        {selectedMedia.media_type === 'tv' ? <Tv className="w-6 h-6 text-white/20" /> : <Film className="w-6 h-6 text-white/20" />}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-lg text-white line-clamp-1">{selectedMedia.title || selectedMedia.name}</h4>
+                                <p className="text-sm text-white/50 capitalize font-medium mt-1">
+                                    {selectedMedia.media_type || preselectedType}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSelectedMedia(null)}
+                            className="p-3 text-white/40 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/10"
+                            title="Choose a different movie/show"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="relative z-50">
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                             <input
                                 type="text"
-                                value={roomName}
-                                onChange={(e) => setRoomNameLocal(e.target.value)}
-                                placeholder="Enter a fun name for your room"
-                                className="input w-full text-lg"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search for a movie or TV show to watch..."
+                                className="w-full bg-[#111] border border-white/10 rounded-xl pl-12 pr-12 py-4 text-white placeholder:text-white/40 focus:outline-none focus:border-accent transition-colors font-medium shadow-inner"
                             />
+                            {isSearching && (
+                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-accent animate-spin" />
+                            )}
                         </div>
 
-                        {/* Media Selection */}
-                        <div>
-                            <label className="block text-sm text-text-secondary mb-2">What to Watch</label>
-
-                            {selectedMedia ? (
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-bg-secondary border border-accent/30">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-16 h-24 rounded-lg overflow-hidden bg-bg-tertiary relative">
-                                            {selectedMedia.poster_path ? (
+                        {/* Search Results Dropdown */}
+                        {searchResults.length > 0 && (
+                            <div ref={listRef} className="absolute left-0 right-0 top-full mt-2 bg-[#111] border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] max-h-80 overflow-y-auto z-50 p-2">
+                                {searchResults.map((result) => (
+                                    <button
+                                        key={result.id}
+                                        onClick={() => handleSelectMedia(result)}
+                                        className="w-full flex items-center gap-4 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group"
+                                    >
+                                        <div className="w-12 h-16 bg-black rounded overflow-hidden relative border border-white/5 flex-shrink-0">
+                                            {result.poster_path ? (
                                                 <Image
-                                                    src={getImageUrl(selectedMedia.poster_path)}
-                                                    alt={selectedMedia.title || ''}
+                                                    src={getImageUrl(result.poster_path, 'w92')!}
+                                                    alt={result.title || result.name || ''}
                                                     fill
+                                                    sizes="48px"
                                                     className="object-cover"
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center">
-                                                    {selectedMedia.media_type === 'tv' ? (
-                                                        <Tv className="w-6 h-6 text-text-muted" />
-                                                    ) : (
-                                                        <Film className="w-6 h-6 text-text-muted" />
-                                                    )}
+                                                    {result.media_type === 'tv' ? <Tv className="w-4 h-4 text-white/30" /> : <Film className="w-4 h-4 text-white/30" />}
                                                 </div>
                                             )}
                                         </div>
                                         <div>
-                                            <h4 className="font-medium">{selectedMedia.title || selectedMedia.name}</h4>
-                                            <p className="text-sm text-text-muted capitalize">
-                                                {selectedMedia.media_type || 'movie'}
-                                                {selectedMedia.vote_average > 0 && ` - Rating ${selectedMedia.vote_average.toFixed(1)}`}
+                                            <h5 className="font-bold text-white group-hover:text-accent transition-colors">
+                                                {result.title || result.name}
+                                            </h5>
+                                            <p className="text-xs text-white/40 uppercase tracking-wider mt-1 font-medium">
+                                                {result.media_type} {result.release_date && `• ${result.release_date.substring(0, 4)}`}
                                             </p>
                                         </div>
-                                    </div>
-                                    <button
-                                        onClick={() => setSelectedMedia(null)}
-                                        className="text-sm text-accent hover:text-accent-light"
-                                    >
-                                        Change
                                     </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div className="relative">
-                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                                        <input
-                                            type="text"
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="Search for a movie or TV show..."
-                                            className="input w-full pl-12"
-                                        />
-                                        {isSearching && (
-                                            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted animate-spin" />
-                                        )}
-                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
-                                    {/* Search Results */}
-                                    {searchResults.length > 0 && (
-                                        <div className="rounded-xl bg-bg-secondary border border-border overflow-hidden max-h-80 overflow-y-auto">
-                                            {searchResults.map((result) => (
-                                                <button
-                                                    key={result.imdbID || result.id}
-                                                    onClick={() => {
-                                                        setSelectedMedia(result);
-                                                        setSearchQuery('');
-                                                        setSearchResults([]);
-                                                    }}
-                                                    className="w-full flex items-center gap-3 p-3 hover:bg-bg-hover transition-colors text-left"
-                                                >
-                                                    <div className="w-12 h-16 rounded-lg overflow-hidden bg-bg-tertiary relative flex-shrink-0">
-                                                        {result.poster_path ? (
-                                                            <Image
-                                                                src={getImageUrl(result.poster_path)}
-                                                                alt={result.title || ''}
-                                                                fill
-                                                                className="object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center">
-                                                                {result.media_type === 'tv' ? (
-                                                                    <Tv className="w-5 h-5 text-text-muted" />
-                                                                ) : (
-                                                                    <Film className="w-5 h-5 text-text-muted" />
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="font-medium truncate">{result.title || result.name}</h4>
-                                                        <p className="text-sm text-text-muted">
-                                                            {result.release_date?.split('-')[0] || result.first_air_date?.split('-')[0]}
-                                                            {' - '}
-                                                            {result.media_type === 'tv' ? 'TV Show' : 'Movie'}
-                                                        </p>
-                                                    </div>
-                                                    <ChevronRight className="w-5 h-5 text-text-muted flex-shrink-0" />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* No results */}
-                                    {searchQuery && !isSearching && searchResults.length === 0 && (
-                                        <p className="text-center text-text-muted py-4">
-                                            No results found for &quot;{searchQuery}&quot;
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Create Button */}
-                        <button
-                            onClick={handleCreateRoom}
-                            disabled={!roomName.trim() || isCreating}
-                            className={`w-full py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-all
-                                ${roomName.trim() && !isCreating
-                                    ? 'btn-primary'
-                                    : 'bg-bg-tertiary text-text-muted cursor-not-allowed'}`}
-                        >
-                            {isCreating ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    Creating Room...
-                                </>
-                            ) : (
-                                <>
-                                    <Play className="w-5 h-5" />
-                                    Create Room
-                                </>
-                            )}
-                        </button>
+                {/* Form Elements */}
+                <div className="space-y-6">
+                    {/* Room Name */}
+                    <div>
+                        <label className="block text-sm font-bold text-white/60 mb-2 uppercase tracking-wide">Room Name</label>
+                        <input
+                            type="text"
+                            value={roomName}
+                            onChange={(e) => setRoomNameLocal(e.target.value)}
+                            className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-white/20 focus:outline-none focus:border-accent transition-colors font-medium"
+                            placeholder="Captain America: Civil War"
+                        />
                     </div>
 
-                    {/* Tips */}
-                    <div className="mt-8 p-4 rounded-xl bg-bg-secondary border border-border">
-                        <h4 className="font-semibold mb-2 flex items-center gap-2">
-                            <Users className="w-4 h-4 text-accent" />
-                            Tips for a Great Watch Party
-                        </h4>
-                        <ul className="text-sm text-text-secondary space-y-1">
-                            <li>Share the room link with friends to invite them</li>
-                            <li>Use the chat to react and discuss</li>
-                            <li>Everyone stays in sync automatically</li>
-                        </ul>
+                    {/* Checkbox */}
+                    <div className="flex items-center gap-3 p-4 bg-[#111] border border-white/10 rounded-xl cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setIsPublic(!isPublic)}>
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isPublic ? 'bg-accent border-accent' : 'bg-transparent border-white/30'}`}>
+                            {isPublic && <div className="w-2.5 h-2.5 bg-white rounded-sm" />}
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-white">List publicly on directory</h4>
+                            <p className="text-xs text-white/50 mt-0.5">Anyone can see the room exists on the Dashboard.</p>
+                        </div>
+                    </div>
+
+                    {/* Room Password/Code */}
+                    <div className="relative pl-3 border-l-2 border-accent">
+                        <label className="block text-sm font-bold text-white/60 mb-2 uppercase tracking-wide">Room Password / Code</label>
+                        <input
+                            type="text"
+                            value={roomCode}
+                            onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                            className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-white/20 focus:outline-none focus:border-accent transition-colors font-mono tracking-widest uppercase"
+                            placeholder="Leave blank for random code"
+                        />
+                        <p className="text-xs text-white/40 mt-2 font-medium pl-1">Share this password with friends you want to invite.</p>
                     </div>
                 </div>
             </div>
-        </main>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-white/5 bg-[#0a0a0a] flex justify-end">
+                <button
+                    onClick={handleCreateRoom}
+                    disabled={isCreating || !selectedMedia}
+                    className="px-8 py-3.5 rounded-xl bg-accent text-white font-bold tracking-wide hover:bg-accent-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-accent/20"
+                >
+                    {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Room'}
+                </button>
+            </div>
+        </div>
     );
 }
 
 export default function CreateRoomPage() {
     return (
-        <Suspense fallback={
-            <main className="min-h-screen bg-bg-primary flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
-            </main>
-        }>
-            <CreateRoomContent />
-        </Suspense>
+        <main className="min-h-screen bg-[#0b0b0b] flex flex-col">
+            <Navbar />
+            
+            <div className="flex-1 flex items-center justify-center px-4 pt-20 pb-12 overflow-visible">
+                <Suspense fallback={
+                    <div className="w-full max-w-2xl h-[500px] bg-[#0d0d0d] border border-white/10 rounded-2xl flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                    </div>
+                }>
+                    <CreateRoomModal />
+                </Suspense>
+            </div>
+        </main>
     );
 }

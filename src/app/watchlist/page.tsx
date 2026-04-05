@@ -93,6 +93,7 @@ export default function WatchlistPage() {
                                                 src={getImageUrl(item.poster_path)}
                                                 alt={item.title}
                                                 fill
+                                                sizes="(max-width: 768px) 100vw, 300px"
                                                 className="object-cover"
                                             />
 

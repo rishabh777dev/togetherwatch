@@ -40,6 +40,7 @@ export default function ActorsRow({ cast }: ActorsRowProps) {
                                     src={getImageUrl(actor.profile_path, 'w185')}
                                     alt={actor.name}
                                     fill
+                                    sizes="(max-width: 768px) 20vw, 5vw"
                                     className="object-cover"
                                 />
                             ) : (

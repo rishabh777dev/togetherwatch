@@ -23,7 +23,7 @@ export default function WatchPage() {
     const [selectedEpisode, setSelectedEpisode] = useState(1);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedSource, setSelectedSource] = useState('vidking');
+    const [selectedSource, setSelectedSource] = useState('vidsrcme');
     const [startProgress, setStartProgress] = useState<number>(0);
     const lastSavedTime = useRef<number>(0);
     const { user } = useAuthStore();
@@ -318,7 +318,7 @@ export default function WatchPage() {
                                                 {/* Background Thumbnail */}
                                                 <div className="absolute inset-0 z-0">
                                                     {ep.still_path ? (
-                                                        <Image src={getImageUrl(ep.still_path, 'w300')} alt={ep.name} fill className={`object-cover transition-transform duration-700 ${isSelected ? 'scale-105' : 'group-hover:scale-105 opacity-60'}`} />
+                                                        <Image src={getImageUrl(ep.still_path, 'w300')} alt={ep.name} fill sizes="(max-width: 768px) 100vw, 300px" className={`object-cover transition-transform duration-700 ${isSelected ? 'scale-105' : 'group-hover:scale-105 opacity-60'}`} />
                                                     ) : (
                                                         <div className="w-full h-full bg-[#111]" />
                                                     )}

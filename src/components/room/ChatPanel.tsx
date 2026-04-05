@@ -61,17 +61,27 @@ export default function ChatPanel({ roomCode, isOpen = true }: ChatPanelProps) {
 
         // Subscribe to new messages with better error handling
         const subscription = subscribeToMessages(roomCode, (newMessage) => {
-            console.log('New message received:', newMessage);
             setMessages(prev => {
-                // Avoid duplicates (including optimistic ones)
-                if (prev.some(m => m.id === newMessage.id ||
-                    (m.id.startsWith('temp_') && m.content === newMessage.content && m.user_id === newMessage.user_id))) {
-                    // Replace temp message with real one
-                    return prev.map(m =>
-                        m.id.startsWith('temp_') && m.content === newMessage.content && m.user_id === newMessage.user_id
-                            ? newMessage : m
-                    );
+                // 1. If exact real ID is already present, just update it (avoids duplicate final renders)
+                if (prev.some(m => m.id === newMessage.id)) {
+                    return prev.map(m => m.id === newMessage.id ? newMessage : m);
                 }
+                
+                // 2. We use optimistic `temp_` IDs. If the user spammed the same emoji twice, 
+                // we ONLY want to replace the oldest matching temp ID to avoid wiping multiples and duplicating keys!
+                const tempIndex = prev.findIndex(m => 
+                    m.id.startsWith('temp_') && 
+                    m.content === newMessage.content && 
+                    m.user_id === newMessage.user_id
+                );
+
+                if (tempIndex !== -1) {
+                    const nextMsgs = [...prev];
+                    nextMsgs[tempIndex] = newMessage;
+                    return nextMsgs;
+                }
+
+                // 3. Otherwise, it's a brand new message from someone else (or a non-optimistic message)
                 return [...prev, newMessage];
             });
         });

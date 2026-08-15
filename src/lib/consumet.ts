@@ -47,7 +47,14 @@ export async function getAnimeInfo(anilistId: number): Promise<AnimeInfo | null>
             return null;
         }
 
-        const data = await response.json();
+        const text = await response.text();
+        let data: any = {};
+        try {
+            data = JSON.parse(text);
+        } catch {
+            return null;
+        }
+
         return {
             id: data.id,
             title: data.title?.english || data.title?.romaji || '',
@@ -75,8 +82,12 @@ export async function getAnimeStreamingLinks(episodeId: string): Promise<AnimeSt
             return null;
         }
 
-        const data = await response.json();
-        return data;
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch {
+            return null;
+        }
     } catch (error) {
         console.error('Error fetching streaming links:', error);
         return null;

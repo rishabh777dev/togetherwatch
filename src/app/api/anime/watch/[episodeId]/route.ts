@@ -25,8 +25,16 @@ export async function GET(
             );
         }
 
-        const data = await response.json();
-        return NextResponse.json(data);
+        const text = await response.text();
+        try {
+            const data = JSON.parse(text);
+            return NextResponse.json(data);
+        } catch {
+            return NextResponse.json(
+                { error: 'Invalid response from anime server' },
+                { status: 502 }
+            );
+        }
     } catch (error) {
         console.error('Error fetching streaming links:', error);
         return NextResponse.json(

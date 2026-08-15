@@ -111,9 +111,10 @@ export const videoSources: VideoSource[] = [
         features: ['Hindi Dub', 'Ad-Free', 'Subs'],
         icon: '🌍',
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            const apiKey = process.env.NEXT_PUBLIC_NHD_API_KEY || 'a577a492ba78cc40abab06b3e8be7b49ddd18056348fa897';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://nhdapi.com/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://nhdapi.com/embed/movie/${tmdbId}`;
+                ? `https://nhdapi.com/tv/${tmdbId}/${season}/${episode}?key=${apiKey}`
+                : `https://nhdapi.com/movie/${tmdbId}?key=${apiKey}`;
         }
     },
     {

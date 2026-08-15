@@ -27,8 +27,8 @@ export const videoSources: VideoSource[] = [
         isAnime: true,
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://player.autoembed.cc/embed/movie/${tmdbId}`;
+                ? `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}`
+                : `https://autoembed.co/movie/tmdb/${tmdbId}`;
         }
     },
     {
@@ -59,7 +59,7 @@ export const videoSources: VideoSource[] = [
     },
     {
         id: 'smashystream',
-        name: 'SmashyStream',
+        name: 'SmashyStream (Anime/HD)',
         description: 'Multi-server aggregator with 15+ mirrors for movies, shows & anime',
         features: ['15+ Mirrors', 'Anime/HD', 'Fast'],
         icon: '💥',
@@ -207,19 +207,6 @@ export const videoSources: VideoSource[] = [
             return mediaType === 'tv' && season !== undefined && episode !== undefined
                 ? `https://vidsrc.cc/v2/embed/tv/${idParam}/${season}/${episode}`
                 : `https://vidsrc.cc/v2/embed/${mediaType}/${idParam}`;
-        }
-    },
-    {
-        id: 'twoembed',
-        name: '2Embed CC',
-        description: 'Reliable alternative embed server for series & anime',
-        features: ['Backup', 'Anime/HD', 'Multi-lang'],
-        icon: '📺',
-        isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
-                : `https://www.2embed.cc/embed/${tmdbId}`;
         }
     },
     {

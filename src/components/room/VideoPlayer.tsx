@@ -78,6 +78,7 @@ export default function VideoPlayer({
                     className="absolute inset-0 w-full h-full"
                     frameBorder="0"
                     allowFullScreen
+                    referrerPolicy="no-referrer"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 />
             )}

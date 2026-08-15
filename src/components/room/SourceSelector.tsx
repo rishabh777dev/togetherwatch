@@ -22,7 +22,7 @@ export default function SourceSelector({
     const [isOpen, setIsOpen] = useState(false);
 
     const sourcesToShow = filterAnimeOnly
-        ? videoSources.filter(source => source.id.includes('hianime') || source.id.includes('gogoanime'))
+        ? videoSources.filter(source => source.isAnime || source.features.some(f => f.toLowerCase().includes('anime')))
         : videoSources;
 
     const activeSourceId = currentSourceId || currentSource || sourcesToShow[0]?.id;

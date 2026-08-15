@@ -7,6 +7,7 @@ export interface VideoSource {
     description: string;
     features: string[];
     icon: string; // Emoji icon
+    isAnime?: boolean;
     getEmbedUrl: (
         mediaType: 'movie' | 'tv',
         tmdbId: string,
@@ -17,6 +18,71 @@ export interface VideoSource {
 }
 
 export const videoSources: VideoSource[] = [
+    {
+        id: 'autoembed',
+        name: 'AutoEmbed (Anime/HD)',
+        description: 'Specialized high-speed engine for Anime & Animation releases',
+        features: ['Anime/HD', 'Subtitles', 'Fast'],
+        icon: '🌸',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`
+                : `https://player.autoembed.cc/embed/movie/${tmdbId}`;
+        }
+    },
+    {
+        id: 'vidsrcicu',
+        name: 'VidSrc ICU (Anime)',
+        description: 'Dedicated Anime stream server supporting dubbed & subbed options',
+        features: ['Anime Spec', 'Dub/Sub', 'Fast'],
+        icon: '🎌',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`
+                : `https://vidsrc.icu/embed/movie/${tmdbId}`;
+        }
+    },
+    {
+        id: 'vidsrcpro',
+        name: 'VidSrc PRO (Anime)',
+        description: 'Ultra HD VidSrc PRO player optimized for Anime titles',
+        features: ['Anime/HD', 'Multi-audio', 'Fast'],
+        icon: '🍡',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidsrc.pro/embed/tv/${tmdbId}/${season}/${episode}`
+                : `https://vidsrc.pro/embed/movie/${tmdbId}`;
+        }
+    },
+    {
+        id: 'smashystream',
+        name: 'SmashyStream',
+        description: 'Multi-server aggregator with 15+ mirrors for movies, shows & anime',
+        features: ['15+ Mirrors', 'Anime/HD', 'Fast'],
+        icon: '💥',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${season}&episode=${episode}`
+                : `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}`;
+        }
+    },
+    {
+        id: 'rivestream',
+        name: 'RiveStream',
+        description: 'Clean, ad-free high bitrate stream server',
+        features: ['Ad-Free', 'Anime/HD', 'Fast'],
+        icon: '🌊',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://rivestream.xyz/embed?type=tv&id=${tmdbId}&s=${season}&e=${episode}`
+                : `https://rivestream.xyz/embed?type=movie&id=${tmdbId}`;
+        }
+    },
     {
         id: 'videasy',
         name: 'Videasy (Cineby)',
@@ -141,6 +207,19 @@ export const videoSources: VideoSource[] = [
             return mediaType === 'tv' && season !== undefined && episode !== undefined
                 ? `https://vidsrc.cc/v2/embed/tv/${idParam}/${season}/${episode}`
                 : `https://vidsrc.cc/v2/embed/${mediaType}/${idParam}`;
+        }
+    },
+    {
+        id: 'twoembed',
+        name: '2Embed CC',
+        description: 'Reliable alternative embed server for series & anime',
+        features: ['Backup', 'Anime/HD', 'Multi-lang'],
+        icon: '📺',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
+                : `https://www.2embed.cc/embed/${tmdbId}`;
         }
     },
     {

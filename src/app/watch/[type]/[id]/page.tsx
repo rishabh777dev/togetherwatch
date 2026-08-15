@@ -42,6 +42,11 @@ export default function WatchPage() {
                     : await getTVDetails(resolvedId);
                 setMedia(data);
 
+                // Auto-switch to dedicated anime server if media is animation/anime
+                if (data?.genres?.some(g => g.name.toLowerCase().includes('animation') || g.name.toLowerCase().includes('anime'))) {
+                    setSelectedSource('autoembed');
+                }
+
                 if (type === 'tv' && data?.seasons && data.seasons.length > 0) {
                     const tvIdForEpisodes = typeof resolvedId === 'number' ? resolvedId : data.id;
                     const eps = await getEpisodesForSeason(tvIdForEpisodes, selectedSeason);
@@ -272,7 +277,7 @@ export default function WatchPage() {
                             </div>
                         </button>
 
-                        <div className={`transition-all duration-300 overflow-hidden ${isServerListExpanded ? 'max-h-[500px] opacity-100 mt-2' : 'max-h-0 opacity-0 lg:max-h-[500px] lg:opacity-100'}`}>
+                        <div className={`transition-all duration-300 overflow-hidden ${isServerListExpanded ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0 lg:max-h-[600px] lg:opacity-100'}`}>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-2 gap-1.5 sm:gap-2 pt-1">
                                 {videoSources.map(source => (
                                     <button
@@ -281,13 +286,20 @@ export default function WatchPage() {
                                             setSelectedSource(source.id);
                                             setIsServerListExpanded(false);
                                         }}
-                                        className={`flex items-center gap-1.5 px-2.5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 border text-left
+                                        className={`flex items-center justify-between px-2.5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 border text-left
                                             ${selectedSource === source.id 
                                             ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.25)] scale-[1.02]' 
                                             : 'bg-white/[0.02] backdrop-blur-md text-white/60 hover:bg-white/[0.08] hover:text-white border-white/[0.05]'}`}
                                     >
-                                        <span className="text-xs sm:text-sm shrink-0">{source.icon}</span>
-                                        <span className="truncate">{source.name}</span>
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <span className="text-xs sm:text-sm shrink-0">{source.icon}</span>
+                                            <span className="truncate">{source.name}</span>
+                                        </div>
+                                        {source.isAnime && (
+                                            <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded shrink-0 ${selectedSource === source.id ? 'bg-black/10 text-pink-700' : 'bg-pink-500/20 text-pink-400 border border-pink-500/30'}`}>
+                                                ANIME
+                                            </span>
+                                        )}
                                     </button>
                                 ))}
                             </div>

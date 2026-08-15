@@ -35,7 +35,7 @@ export default function AnimeWatchPage() {
 
     const [anime, setAnime] = useState<AnimeDetails | null>(null);
     const [currentEpisode, setCurrentEpisode] = useState(1);
-    const [selectedSource, setSelectedSource] = useState('vidsrc');
+    const [selectedSource, setSelectedSource] = useState('autoembed');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -79,25 +79,26 @@ export default function AnimeWatchPage() {
     // Generate embed URL based on selected source
     let embedUrl = '';
 
-    if (selectedSource === 'vidsrc') {
-        embedUrl = `https://vidsrc.xyz/embed/anime/${animeId}/${currentEpisode}`;
+    if (selectedSource === 'autoembed') {
+        embedUrl = `https://player.autoembed.cc/embed/tv/${animeId}/1/${currentEpisode}`;
+    } else if (selectedSource === 'vidsrcicu') {
+        embedUrl = `https://vidsrc.icu/embed/tv/${animeId}/1/${currentEpisode}`;
     } else if (selectedSource === 'vidsrc-pro') {
-        embedUrl = `https://vidsrc.pro/embed/anime/${animeId}/${currentEpisode}`;
-    } else if (selectedSource === 'vidlink') {
-        embedUrl = `https://vidlink.pro/anime/${animeId}?episode=${currentEpisode}`;
-    } else if (selectedSource === '2anime') {
-        const animeSlug = anime.title.romaji
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '');
-        embedUrl = `https://2anime.xyz/embed/${animeSlug}-episode-${currentEpisode}`;
+        embedUrl = `https://vidsrc.pro/embed/tv/${animeId}/1/${currentEpisode}`;
+    } else if (selectedSource === 'smashystream') {
+        embedUrl = `https://embed.smashystream.com/playere.php?tmdb=${animeId}&season=1&episode=${currentEpisode}`;
+    } else if (selectedSource === 'rivestream') {
+        embedUrl = `https://rivestream.xyz/embed?type=tv&id=${animeId}&s=1&e=${currentEpisode}`;
+    } else {
+        embedUrl = `https://vidsrc.xyz/embed/anime/${animeId}/${currentEpisode}`;
     }
 
     const sources = [
-        { id: 'vidsrc', name: 'VidSrc', icon: '⭐', desc: 'Recommended' },
-        { id: 'vidsrc-pro', name: 'VidSrc Pro', icon: '🎬', desc: 'Alternative' },
-        { id: 'vidlink', name: 'VidLink', icon: '🔗', desc: 'Backup' },
-        { id: '2anime', name: '2Anime', icon: '🎌', desc: 'Direct' },
+        { id: 'autoembed', name: 'AutoEmbed Anime', icon: '🌸', desc: 'Recommended (Fast HD)' },
+        { id: 'vidsrcicu', name: 'VidSrc ICU', icon: '🎌', desc: 'Dubbed & Subbed' },
+        { id: 'vidsrc-pro', name: 'VidSrc Pro', icon: '🍡', desc: 'Ultra HD' },
+        { id: 'smashystream', name: 'SmashyStream', icon: '💥', desc: '15+ Mirrors' },
+        { id: 'rivestream', name: 'RiveStream', icon: '🌊', desc: 'Ad-Free HD' },
     ];
 
     return (

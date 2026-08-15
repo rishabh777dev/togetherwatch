@@ -21,7 +21,7 @@ export const videoSources: VideoSource[] = [
     {
         id: 'autoembed',
         name: 'AutoEmbed (Anime/HD)',
-        description: 'Specialized high-speed engine for Anime & Animation releases',
+        description: 'Verified high-speed player supporting Anime, Movies & Series',
         features: ['Anime/HD', 'Subtitles', 'Fast'],
         icon: '🌸',
         isAnime: true,
@@ -32,55 +32,16 @@ export const videoSources: VideoSource[] = [
         }
     },
     {
-        id: 'vidsrcicu',
-        name: 'VidSrc ICU (Anime)',
-        description: 'Dedicated Anime stream server supporting dubbed & subbed options',
-        features: ['Anime Spec', 'Dub/Sub', 'Fast'],
-        icon: '🎌',
+        id: 'twoembedskin',
+        name: '2Embed Skin (Anime/HD)',
+        description: 'Verified fast player with complete anime & TV episode mirrors',
+        features: ['Anime/HD', 'Clean', 'Fast'],
+        icon: '📺',
         isAnime: true,
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://vidsrc.icu/embed/movie/${tmdbId}`;
-        }
-    },
-    {
-        id: 'vidsrcpro',
-        name: 'VidSrc PRO (Anime)',
-        description: 'Ultra HD VidSrc PRO player optimized for Anime titles',
-        features: ['Anime/HD', 'Multi-audio', 'Fast'],
-        icon: '🍡',
-        isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.pro/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://vidsrc.pro/embed/movie/${tmdbId}`;
-        }
-    },
-    {
-        id: 'smashystream',
-        name: 'SmashyStream (Anime/HD)',
-        description: 'Multi-server aggregator with 15+ mirrors for movies, shows & anime',
-        features: ['15+ Mirrors', 'Anime/HD', 'Fast'],
-        icon: '💥',
-        isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${season}&episode=${episode}`
-                : `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}`;
-        }
-    },
-    {
-        id: 'rivestream',
-        name: 'RiveStream',
-        description: 'Clean, ad-free high bitrate stream server',
-        features: ['Ad-Free', 'Anime/HD', 'Fast'],
-        icon: '🌊',
-        isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://rivestream.xyz/embed?type=tv&id=${tmdbId}&s=${season}&e=${episode}`
-                : `https://rivestream.xyz/embed?type=movie&id=${tmdbId}`;
+                ? `https://www.2embed.skin/embedtv/${tmdbId}&s=${season}&e=${episode}`
+                : `https://www.2embed.skin/embed/${tmdbId}`;
         }
     },
     {
@@ -90,10 +51,21 @@ export const videoSources: VideoSource[] = [
         features: ['4K/HD', 'Subtitles', 'Multi-audio'],
         icon: '🍿',
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            // Videasy uses strictly TMDB IDs
             return mediaType === 'tv' && season !== undefined && episode !== undefined
                 ? `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}`
                 : `https://player.videasy.net/movie/${tmdbId}`;
+        }
+    },
+    {
+        id: 'vidlink',
+        name: 'VidLink PRO',
+        description: 'Premium auto-syncing player with high speed streams',
+        features: ['Auto-Sync', 'HD', 'Fast'],
+        icon: '⚡',
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=E50914&autoplay=false`
+                : `https://vidlink.pro/movie/${tmdbId}?primaryColor=E50914&autoplay=false`;
         }
     },
     {
@@ -158,32 +130,6 @@ export const videoSources: VideoSource[] = [
         }
     },
     {
-        id: 'vidlink',
-        name: 'VidLink PRO',
-        description: 'Premium auto-syncing player',
-        features: ['Auto-Sync', 'HD', 'Fast'],
-        icon: '⚡',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            // VidLink works strictly with TMDB IDs
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=E50914&autoplay=false`
-                : `https://vidlink.pro/movie/${tmdbId}?primaryColor=E50914&autoplay=false`;
-        }
-    },
-    {
-        id: 'embedsu',
-        name: 'Embed.su',
-        description: 'Fast alternative with multiple mirrors',
-        features: ['Clean', 'Multi-mirrors', 'HD'],
-        icon: '💎',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            // Embed.su works best with TMDB ID
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://embed.su/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://embed.su/embed/movie/${tmdbId}`;
-        }
-    },
-    {
         id: 'vidsrcme',
         name: 'VidSrc ME',
         description: 'VidSrc mirror (often bypasses blocks)',
@@ -207,6 +153,18 @@ export const videoSources: VideoSource[] = [
             return mediaType === 'tv' && season !== undefined && episode !== undefined
                 ? `https://vidsrc.cc/v2/embed/tv/${idParam}/${season}/${episode}`
                 : `https://vidsrc.cc/v2/embed/${mediaType}/${idParam}`;
+        }
+    },
+    {
+        id: 'embedsu',
+        name: 'Embed.su',
+        description: 'Fast alternative with multiple mirrors',
+        features: ['Clean', 'Multi-mirrors', 'HD'],
+        icon: '💎',
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://embed.su/embed/tv/${tmdbId}/${season}/${episode}`
+                : `https://embed.su/embed/movie/${tmdbId}`;
         }
     },
     {

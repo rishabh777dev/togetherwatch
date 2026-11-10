@@ -1,6 +1,8 @@
 // Video Source Configuration
 // Defines verified, working streaming sources with active embed permissions
 
+import { getPreferredServer } from './watchProgress';
+
 export interface VideoSource {
     id: string;
     name: string;
@@ -153,6 +155,11 @@ export function getSourceById(id: string): VideoSource | undefined {
 
 // Get default source
 export function getDefaultSource(): VideoSource {
+    const saved = getPreferredServer();
+    if (saved) {
+        const found = videoSources.find(s => s.id === saved);
+        if (found) return found;
+    }
     return videoSources.find(s => s.id === 'vidlink') || videoSources[0];
 }
 

@@ -7,6 +7,7 @@ import { useRoomStore } from '@/lib/store';
 import { createRoom } from '@/lib/supabase';
 import { getImageUrl, getMovieDetails, getTVDetails, Movie, searchMulti } from '@/lib/tmdb';
 import { getEmbedUrl } from '@/lib/videoSources';
+import { getPreferredServer } from '@/lib/watchProgress';
 import { useAuthStore } from '@/store/useAuthStore';
 import { ArrowLeft, Edit2, Film, Loader2, Search, Tv, X } from 'lucide-react';
 import Image from 'next/image';
@@ -155,6 +156,8 @@ function CreateRoomModal() {
                 isPublic: isPublic,
             });
 
+            const defaultSource = getPreferredServer() || 'vidlink';
+
             if (error || !room) {
                 console.warn('Supabase room creation failed, falling back to database-free P2P mode:', error);
                 
@@ -172,13 +175,13 @@ function CreateRoomModal() {
                     media_id: encodedMediaId,
                     media_type: mediaType as 'movie' | 'tv',
                     media_title: selectedMedia?.title || selectedMedia?.name || 'Watch Party',
-                    selected_source: 'vidlink',
+                    selected_source: defaultSource,
                     created_at: new Date().toISOString()
                 });
 
                 if (selectedMedia) {
                     const embedUrl = getEmbedUrl(
-                        'vidlink',
+                        defaultSource,
                         mediaType as 'movie' | 'tv',
                         String(selectedMedia.id),
                         selectedMedia.imdbID,
@@ -213,13 +216,13 @@ function CreateRoomModal() {
                 media_id: room.media_id,
                 media_type: room.media_type,
                 media_title: room.media_title,
-                selected_source: room.selected_source || 'vidlink',
+                selected_source: room.selected_source || defaultSource,
                 created_at: room.created_at
             });
 
             if (selectedMedia) {
                 const embedUrl = getEmbedUrl(
-                    'vidlink',
+                    room.selected_source || defaultSource,
                     mediaType as 'movie' | 'tv',
                     String(selectedMedia.id),
                     selectedMedia.imdbID,

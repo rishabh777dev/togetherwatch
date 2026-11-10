@@ -2,6 +2,7 @@
 
 import Navbar from '@/components/Navbar';
 import { getAnimeDetails } from '@/lib/anilist';
+import { getPreferredServer, savePreferredServer, saveContinueWatchingItem } from '@/lib/watchProgress';
 import { ExternalLink, Loader2, Play } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -37,6 +38,31 @@ export default function AnimeWatchPage() {
     const [currentEpisode, setCurrentEpisode] = useState(1);
     const [selectedSource, setSelectedSource] = useState('vidrift');
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const saved = getPreferredServer();
+        if (saved) {
+            setSelectedSource(saved);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!anime) return;
+        saveContinueWatchingItem({
+            id: `anime:${animeId}:ep${currentEpisode}`,
+            media_id: animeId,
+            media_type: 'tv',
+            title: anime.title.english || anime.title.romaji || 'Anime',
+            poster_path: anime.coverImage?.large,
+            backdrop_path: anime.coverImage?.large,
+            season: 1,
+            episode: currentEpisode,
+            progress: 0,
+            timestamp: 0,
+            duration: 0,
+            updated_at: new Date().toISOString()
+        });
+    }, [anime, currentEpisode, animeId]);
 
     useEffect(() => {
         async function loadAnime() {
@@ -139,7 +165,10 @@ export default function AnimeWatchPage() {
                             {sources.map((source) => (
                                 <button
                                     key={source.id}
-                                    onClick={() => setSelectedSource(source.id)}
+                                    onClick={() => {
+                                        setSelectedSource(source.id);
+                                        savePreferredServer(source.id);
+                                    }}
                                     className={`
                                         p-3 rounded-lg transition-all text-left
                                         ${selectedSource === source.id

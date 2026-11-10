@@ -27,6 +27,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { getPreferredServer, savePreferredServer } from '@/lib/watchProgress';
 
 // TMDB Image URL helper
 const getImageUrl = (path: string | null) => path ? `https://image.tmdb.org/t/p/w500${path}` : null;
@@ -72,10 +73,8 @@ export default function DashboardPage() {
         }
 
         // Load saved server preference
-        try {
-            const savedServer = localStorage.getItem('togetherwatch_default_server');
-            if (savedServer) setPreferredServer(savedServer);
-        } catch (e) {}
+        const savedServer = getPreferredServer();
+        if (savedServer) setPreferredServer(savedServer);
     }, [user]);
 
     useEffect(() => {
@@ -146,9 +145,7 @@ export default function DashboardPage() {
 
     const handleServerChange = (serverId: string) => {
         setPreferredServer(serverId);
-        try {
-            localStorage.setItem('togetherwatch_default_server', serverId);
-        } catch (e) {}
+        savePreferredServer(serverId);
     };
 
     const handleClearHistory = () => {

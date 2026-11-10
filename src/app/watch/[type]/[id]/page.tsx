@@ -5,6 +5,12 @@ import ActorsRow from '@/components/ActorsRow';
 import RecommendationsGrid from '@/components/RecommendationsGrid';
 import { getEpisodesForSeason, getImageUrl, getMovieDetails, getTVDetails, Movie, Episode } from '@/lib/tmdb';
 import { getEmbedUrl, videoSources } from '@/lib/videoSources';
+import { 
+    getPreferredServer, 
+    savePreferredServer, 
+    getContinueWatchingItem, 
+    saveContinueWatchingItem 
+} from '@/lib/watchProgress';
 import { Calendar, ChevronDown, Clock, Play, Star, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -28,6 +34,14 @@ export default function WatchPage() {
     const [startProgress, setStartProgress] = useState<number>(0);
     const lastSavedTime = useRef<number>(0);
     const { user } = useAuthStore();
+
+    // Remember last used server from localStorage
+    useEffect(() => {
+        const savedServer = getPreferredServer();
+        if (savedServer && videoSources.some(s => s.id === savedServer)) {
+            setSelectedSource(savedServer);
+        }
+    }, []);
 
     useEffect(() => {
         if (!idParam) return;
@@ -63,30 +77,55 @@ export default function WatchPage() {
     }, [idParam, type, selectedSeason]);
 
     useEffect(() => {
-        if (!user || !media) return;
+        if (!media) return;
         const embedId = media?.imdbID || idParam;
 
         const loadProgress = async () => {
-            const { data, error } = await supabase
-                .from('watch_progress')
-                .select('timestamp')
-                .eq('user_id', user.id)
-                .eq('media_id', String(embedId))
-                .eq('media_type', type)
-                .eq('season', selectedSeason || 0)
-                .eq('episode', selectedEpisode || 0)
-                .single();
-            
-            if (!error && data && data.timestamp > 0) {
-                setStartProgress(Math.floor(data.timestamp));
+            // 1. Check local storage first (instant for guests and authenticated users)
+            const localItem = getContinueWatchingItem(String(embedId), type);
+            if (localItem && localItem.timestamp > 10) {
+                setStartProgress(Math.floor(localItem.timestamp));
             }
+
+            // 2. Also check Supabase if signed in
+            if (user) {
+                const { data, error } = await supabase
+                    .from('watch_progress')
+                    .select('timestamp')
+                    .eq('user_id', user.id)
+                    .eq('media_id', String(embedId))
+                    .eq('media_type', type)
+                    .eq('season', selectedSeason || 0)
+                    .eq('episode', selectedEpisode || 0)
+                    .single();
+                
+                if (!error && data && data.timestamp > 0) {
+                    setStartProgress(Math.floor(data.timestamp));
+                }
+            }
+
+            // 3. Immediately register in Continue Watching list
+            saveContinueWatchingItem({
+                id: `${type}:${embedId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
+                media_id: String(embedId),
+                media_type: type,
+                title: media.title || media.name || 'Untitled',
+                poster_path: media.poster_path,
+                backdrop_path: media.backdrop_path,
+                season: selectedSeason || 1,
+                episode: selectedEpisode || 1,
+                progress: localItem?.progress || 0,
+                timestamp: localItem?.timestamp || 0,
+                duration: localItem?.duration || 0,
+                updated_at: new Date().toISOString()
+            });
         };
         
         loadProgress();
     }, [user, media, idParam, type, selectedSeason, selectedEpisode]);
 
     useEffect(() => {
-        if (!user || !media) return;
+        if (!media) return;
         const embedId = media?.imdbID || idParam;
 
         const handleMessage = async (event: MessageEvent) => {
@@ -98,36 +137,55 @@ export default function WatchPage() {
                     const currentTime = data.data.position || data.data.currentTime;
                     const duration = data.data.duration;
                     
-                    if (currentTime && duration && Math.abs(currentTime - lastSavedTime.current) > 10) {
+                    if (currentTime && duration && Math.abs(currentTime - lastSavedTime.current) > 5) {
                         lastSavedTime.current = currentTime;
-                        const progressPercent = (currentTime / duration) * 100;
+                        const progressPercent = Math.min((currentTime / duration) * 100, 100);
                         
-                        const payload = {
-                            user_id: user.id,
+                        // 1. Save locally (persists for everyone!)
+                        saveContinueWatchingItem({
+                            id: `${type}:${embedId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
                             media_id: String(embedId),
                             media_type: type,
-                            season: selectedSeason || 0,
-                            episode: selectedEpisode || 0,
+                            title: media.title || media.name || 'Untitled',
+                            poster_path: media.poster_path,
+                            backdrop_path: media.backdrop_path,
+                            season: selectedSeason || 1,
+                            episode: selectedEpisode || 1,
                             progress: progressPercent,
                             timestamp: currentTime,
                             duration: duration,
                             updated_at: new Date().toISOString()
-                        };
+                        });
 
-                        const { data: existing } = await supabase
-                            .from('watch_progress')
-                            .select('id')
-                            .eq('user_id', user.id)
-                            .eq('media_id', String(embedId))
-                            .eq('media_type', type)
-                            .eq('season', selectedSeason || 0)
-                            .eq('episode', selectedEpisode || 0)
-                            .single();
+                        // 2. Also save to Supabase if user is logged in
+                        if (user) {
+                            const payload = {
+                                user_id: user.id,
+                                media_id: String(embedId),
+                                media_type: type,
+                                season: selectedSeason || 0,
+                                episode: selectedEpisode || 0,
+                                progress: progressPercent,
+                                timestamp: currentTime,
+                                duration: duration,
+                                updated_at: new Date().toISOString()
+                            };
 
-                        if (existing) {
-                            await supabase.from('watch_progress').update(payload).eq('id', existing.id);
-                        } else {
-                            await supabase.from('watch_progress').insert(payload);
+                            const { data: existing } = await supabase
+                                .from('watch_progress')
+                                .select('id')
+                                .eq('user_id', user.id)
+                                .eq('media_id', String(embedId))
+                                .eq('media_type', type)
+                                .eq('season', selectedSeason || 0)
+                                .eq('episode', selectedEpisode || 0)
+                                .single();
+
+                            if (existing) {
+                                await supabase.from('watch_progress').update(payload).eq('id', existing.id);
+                            } else {
+                                await supabase.from('watch_progress').insert(payload);
+                            }
                         }
                     }
                 }
@@ -285,6 +343,7 @@ export default function WatchPage() {
                                         key={source.id}
                                         onClick={() => {
                                             setSelectedSource(source.id);
+                                            savePreferredServer(source.id);
                                             setIsServerListExpanded(false);
                                         }}
                                         className={`flex items-center justify-between px-2.5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 border text-left

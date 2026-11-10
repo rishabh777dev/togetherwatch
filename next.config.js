@@ -50,6 +50,8 @@ const nextConfig = {
                     "connect-src 'self' https: wss: data: blob:",
                     "frame-src 'self' https: blob: data:",
                     "media-src 'self' blob: https:",
+                    "worker-src 'self' blob:",
+                    "manifest-src 'self'",
                     "object-src 'none'",
                     "base-uri 'self'",
                     "form-action 'self'",
@@ -59,6 +61,21 @@ const nextConfig = {
         ];
 
         return [
+            {
+                source: '/sw.js',
+                headers: [
+                    { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+                    { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+                    { key: 'Service-Worker-Allowed', value: '/' },
+                ],
+            },
+            {
+                source: '/manifest.json',
+                headers: [
+                    { key: 'Content-Type', value: 'application/manifest+json; charset=utf-8' },
+                    { key: 'Cache-Control', value: 'public, max-age=86400' },
+                ],
+            },
             {
                 source: '/:path*',
                 headers: securityHeaders,

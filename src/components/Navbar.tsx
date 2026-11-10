@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/lib/supabase';
 import { searchMulti, getImageUrl, Movie } from '@/lib/tmdb';
 import { useRouter } from 'next/navigation';
+import InstallAppButton from '@/components/InstallAppButton';
 
 const NAVBAR_GENRES = [
     { id: 'action', name: 'Action' },
@@ -189,6 +190,9 @@ export default function Navbar() {
 
                     {/* Right Side */}
                     <div className="flex items-center gap-2">
+                        {/* Install App Button (PWA) */}
+                        <InstallAppButton variant="navbar" />
+
                         {/* Search */}
                         <div className="relative">
                             {isSearchOpen ? (
@@ -485,6 +489,12 @@ export default function Navbar() {
                         >
                             Watch Together
                         </Link>
+                        
+                        {/* Mobile Install App Button */}
+                        <div className="pt-2 pb-1">
+                            <InstallAppButton variant="mobile" onInstalled={() => setIsMobileMenuOpen(false)} />
+                        </div>
+
                         <hr className="border-border my-2" />
                         
                         {isInitialized && user ? (

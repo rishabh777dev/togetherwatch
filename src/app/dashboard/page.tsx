@@ -28,6 +28,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getPreferredServer, savePreferredServer } from '@/lib/watchProgress';
+import InstallAppButton from '@/components/InstallAppButton';
 
 // TMDB Image URL helper
 const getImageUrl = (path: string | null) => path ? `https://image.tmdb.org/t/p/w500${path}` : null;
@@ -758,6 +759,9 @@ export default function DashboardPage() {
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* Install PWA Card */}
+                                <InstallAppButton variant="card" />
                             </div>
 
                             {/* Sidebar Security Details */}

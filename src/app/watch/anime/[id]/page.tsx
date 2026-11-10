@@ -35,7 +35,7 @@ export default function AnimeWatchPage() {
 
     const [anime, setAnime] = useState<AnimeDetails | null>(null);
     const [currentEpisode, setCurrentEpisode] = useState(1);
-    const [selectedSource, setSelectedSource] = useState('autoembed');
+    const [selectedSource, setSelectedSource] = useState('vidrift');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -79,26 +79,26 @@ export default function AnimeWatchPage() {
     // Generate embed URL based on selected source
     let embedUrl = '';
 
-    if (selectedSource === 'autoembed') {
+    if (selectedSource === 'vidrift') {
+        embedUrl = `https://embed.vidrift.net/embed/anilist/${animeId}/${currentEpisode}`;
+    } else if (selectedSource === 'autoembed') {
         embedUrl = `https://player.autoembed.cc/embed/tv/${animeId}/1/${currentEpisode}`;
-    } else if (selectedSource === 'vidsrcicu') {
-        embedUrl = `https://vidsrc.icu/embed/tv/${animeId}/1/${currentEpisode}`;
-    } else if (selectedSource === 'vidsrc-pro') {
-        embedUrl = `https://vidsrc.pro/embed/tv/${animeId}/1/${currentEpisode}`;
-    } else if (selectedSource === 'smashystream') {
-        embedUrl = `https://embed.smashystream.com/playere.php?tmdb=${animeId}&season=1&episode=${currentEpisode}`;
-    } else if (selectedSource === 'rivestream') {
-        embedUrl = `https://rivestream.xyz/embed?type=tv&id=${animeId}&s=1&e=${currentEpisode}`;
+    } else if (selectedSource === 'vidbolt') {
+        embedUrl = `https://vidbolt.xyz/tv/${animeId}/1/${currentEpisode}`;
+    } else if (selectedSource === 'vidlink') {
+        embedUrl = `https://vidlink.pro/tv/${animeId}/1/${currentEpisode}`;
+    } else if (selectedSource === 'vidout') {
+        embedUrl = `https://vidout.pages.dev/tv/${animeId}/1/${currentEpisode}`;
     } else {
-        embedUrl = `https://vidsrc.xyz/embed/anime/${animeId}/${currentEpisode}`;
+        embedUrl = `https://embed.vidrift.net/embed/anilist/${animeId}/${currentEpisode}`;
     }
 
     const sources = [
-        { id: 'autoembed', name: 'AutoEmbed Anime', icon: '🌸', desc: 'Recommended (Fast HD)' },
-        { id: 'vidsrcicu', name: 'VidSrc ICU', icon: '🎌', desc: 'Dubbed & Subbed' },
-        { id: 'vidsrc-pro', name: 'VidSrc Pro', icon: '🍡', desc: 'Ultra HD' },
-        { id: 'smashystream', name: 'SmashyStream', icon: '💥', desc: '15+ Mirrors' },
-        { id: 'rivestream', name: 'RiveStream', icon: '🌊', desc: 'Ad-Free HD' },
+        { id: 'vidrift', name: 'Vidrift Anime', icon: '🌸', desc: 'Recommended (HLS & Auto-Next)' },
+        { id: 'autoembed', name: 'AutoEmbed Anime', icon: '⚡', desc: 'Fast HD Mirror' },
+        { id: 'vidbolt', name: 'VidBolt Anime', icon: '🍡', desc: 'Ultra HD' },
+        { id: 'vidlink', name: 'VidLink PRO', icon: '🚀', desc: 'Ad-Free HD' },
+        { id: 'vidout', name: 'VIDOUT', icon: '🎌', desc: 'Multi-Audio' },
     ];
 
     return (

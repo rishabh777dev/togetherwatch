@@ -172,13 +172,13 @@ function CreateRoomModal() {
                     media_id: encodedMediaId,
                     media_type: mediaType as 'movie' | 'tv',
                     media_title: selectedMedia?.title || selectedMedia?.name || 'Watch Party',
-                    selected_source: 'videasy',
+                    selected_source: 'vidlink',
                     created_at: new Date().toISOString()
                 });
 
                 if (selectedMedia) {
                     const embedUrl = getEmbedUrl(
-                        'videasy',
+                        'vidlink',
                         mediaType as 'movie' | 'tv',
                         String(selectedMedia.id),
                         selectedMedia.imdbID,
@@ -213,13 +213,13 @@ function CreateRoomModal() {
                 media_id: room.media_id,
                 media_type: room.media_type,
                 media_title: room.media_title,
-                selected_source: room.selected_source || 'videasy',
+                selected_source: room.selected_source || 'vidlink',
                 created_at: room.created_at
             });
 
             if (selectedMedia) {
                 const embedUrl = getEmbedUrl(
-                    'videasy',
+                    'vidlink',
                     mediaType as 'movie' | 'tv',
                     String(selectedMedia.id),
                     selectedMedia.imdbID,

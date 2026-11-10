@@ -46,7 +46,7 @@ export default function DashboardPage() {
     const [displayName, setDisplayName] = useState('');
     const [isSavingName, setIsSavingName] = useState(false);
     const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
-    const [preferredServer, setPreferredServer] = useState('videasy');
+    const [preferredServer, setPreferredServer] = useState('vidlink');
 
     // Stats
     const [totalWatchTime, setTotalWatchTime] = useState('0h');
@@ -738,10 +738,10 @@ export default function DashboardPage() {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {[
-                                            { id: 'videasy', name: 'Videasy (Cineby)', desc: 'Fast, high-speed multi-lingual' },
-                                            { id: 'vidsrc', name: 'VidSrc TO', desc: 'High quality 1080p stream' },
-                                            { id: 'screenscape', name: 'Screenscape', desc: 'Smooth bufferless player' },
-                                            { id: 'gdmirror', name: 'GD Mirror', desc: 'Google Drive fast mirror' },
+                                            { id: 'vidlink', name: 'VidLink PRO', desc: 'Fast, auto-syncing player (Recommended)' },
+                                            { id: 'vidrift', name: 'Vidrift', desc: 'Adaptive HLS & Anime support' },
+                                            { id: 'vidout', name: 'VIDOUT', desc: 'Multi-Audio cloud streams' },
+                                            { id: 'autoembed', name: 'AutoEmbed', desc: 'High quality anime and movie mirror' },
                                         ].map(server => (
                                             <button
                                                 key={server.id}

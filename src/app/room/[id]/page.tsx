@@ -86,7 +86,7 @@ export default function RoomPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [roomData, setRoomData] = useState<Room | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [selectedSource, setSelectedSource] = useState('videasy');
+    const [selectedSource, setSelectedSource] = useState('vidlink');
     const [isWaitingForP2P, setIsWaitingForP2P] = useState(false);
     
     // Auth and Display Name
@@ -150,7 +150,7 @@ export default function RoomPage() {
             setRoomData(remoteRoom);
             setRoomId(remoteRoom.code);
             setRoomName(remoteRoom.name);
-            setSelectedSource(remoteRoom.selected_source || 'videasy');
+            setSelectedSource(remoteRoom.selected_source || 'vidlink');
             const parsedMedia = parseRoomMediaId(remoteRoom.media_id, remoteRoom.media_type);
             setMedia(
                 '',
@@ -191,7 +191,7 @@ export default function RoomPage() {
                     media_id: mediaIdParam,
                     media_type: mediaTypeParam as 'movie' | 'tv',
                     media_title: mediaTitleParam || 'Watch Party',
-                    selected_source: 'videasy',
+                    selected_source: 'vidlink',
                     created_at: new Date().toISOString(),
                     is_public: false,
                     host_name: 'Host',
@@ -202,7 +202,7 @@ export default function RoomPage() {
                 setRoomId(mockRoom.code);
                 setRoomName(mockRoom.name);
                 setIsHost(true);
-                setSelectedSource('videasy');
+                setSelectedSource('vidlink');
                 const parsedMedia = parseRoomMediaId(mockRoom.media_id, mockRoom.media_type);
                 setMedia(
                     '',
@@ -223,7 +223,7 @@ export default function RoomPage() {
                 setRoomId(localMeta.code);
                 setRoomName(localMeta.name);
                 setIsHost(true);
-                setSelectedSource(localMeta.selected_source || 'videasy');
+                setSelectedSource(localMeta.selected_source || 'vidlink');
                 const parsedMedia = parseRoomMediaId(localMeta.media_id, localMeta.media_type);
                 setMedia(
                     '',
@@ -253,7 +253,7 @@ export default function RoomPage() {
                 localUserId.current === room.host_id ||
                 isHostedRoom(room.code)
             );
-            setSelectedSource(room.selected_source || 'videasy');
+            setSelectedSource(room.selected_source || 'vidlink');
             const parsedMedia = parseRoomMediaId(room.media_id, room.media_type);
             setMedia(
                 '',
@@ -273,7 +273,7 @@ export default function RoomPage() {
         fetchRoom();
 
         const sourceChannel = subscribeToRoomSource(roomCodeParam, (newSourceId) => {
-            const resolvedSource = newSourceId || 'videasy';
+            const resolvedSource = newSourceId || 'vidlink';
             setSelectedSource((prev) => {
                 if (prev !== resolvedSource) {
                     setIsIframeReady(false);

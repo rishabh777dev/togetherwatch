@@ -1,5 +1,5 @@
 // Video Source Configuration
-// Defines available streaming sources for multi-language and quality options
+// Defines verified, working streaming sources with active embed permissions
 
 export interface VideoSource {
     id: string;
@@ -17,45 +17,9 @@ export interface VideoSource {
     ) => string;
 }
 
+const GD_KEY = process.env.NEXT_PUBLIC_GD_KEY || 'e11a7debaaa4f5d25b671706ffe4d2acb56efbd4';
+
 export const videoSources: VideoSource[] = [
-    {
-        id: 'autoembed',
-        name: 'AutoEmbed (Anime/HD)',
-        description: 'Verified high-speed player supporting Anime, Movies & Series',
-        features: ['Anime/HD', 'Subtitles', 'Fast'],
-        icon: '🌸',
-        isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}`
-                : `https://autoembed.co/movie/tmdb/${tmdbId}`;
-        }
-    },
-    {
-        id: 'twoembedskin',
-        name: '2Embed Skin (Anime/HD)',
-        description: 'Verified fast player with complete anime & TV episode mirrors',
-        features: ['Anime/HD', 'Clean', 'Fast'],
-        icon: '📺',
-        isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://www.2embed.skin/embedtv/${tmdbId}&s=${season}&e=${episode}`
-                : `https://www.2embed.skin/embed/${tmdbId}`;
-        }
-    },
-    {
-        id: 'videasy',
-        name: 'Videasy (Cineby)',
-        description: 'Cineby premium engine with multiple mirrors (Yoru, Neon, Sage, Jett)',
-        features: ['4K/HD', 'Subtitles', 'Multi-audio'],
-        icon: '🍿',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}`
-                : `https://player.videasy.net/movie/${tmdbId}`;
-        }
-    },
     {
         id: 'vidlink',
         name: 'VidLink PRO',
@@ -69,6 +33,81 @@ export const videoSources: VideoSource[] = [
         }
     },
     {
+        id: 'vidrift',
+        name: 'Vidrift',
+        description: 'Adaptive HLS player with subtitles and anime support',
+        features: ['Anime/HD', 'Subtitles', 'HLS'],
+        icon: '🌊',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://embed.vidrift.net/embed/tv/${tmdbId}/${season}/${episode}`
+                : `https://embed.vidrift.net/embed/movie/${tmdbId}`;
+        }
+    },
+    {
+        id: 'vidout',
+        name: 'VIDOUT (Multi)',
+        description: 'Multi-Audio cloud player hosted on high-speed CDN',
+        features: ['Multi-Audio', 'Cloudflare', 'HD'],
+        icon: '🎧',
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidout.pages.dev/tv/${tmdbId}/${season}/${episode}`
+                : `https://vidout.pages.dev/movie/${imdbId || tmdbId}`;
+        }
+    },
+    {
+        id: 'autoembed',
+        name: 'AutoEmbed',
+        description: 'Verified high-speed player supporting Anime, Movies & Series',
+        features: ['Anime/HD', 'Subtitles', 'Fast'],
+        icon: '🌸',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}`
+                : `https://autoembed.co/movie/tmdb/${tmdbId}`;
+        }
+    },
+    {
+        id: 'twoembedskin',
+        name: '2Embed Skin',
+        description: 'Verified fast player with complete anime & TV episode mirrors',
+        features: ['Anime/HD', 'Clean', 'Fast'],
+        icon: '📺',
+        isAnime: true,
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://www.2embed.skin/embedtv/${tmdbId}&s=${season}&e=${episode}`
+                : `https://www.2embed.skin/embed/${tmdbId}`;
+        }
+    },
+    {
+        id: 'vidbolt',
+        name: 'VidBolt',
+        description: 'Clean, lightweight player with instant bufferless playback',
+        features: ['Ultra-Fast', 'HD', 'Clean'],
+        icon: '⚡',
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidbolt.xyz/tv/${tmdbId}/${season}/${episode}`
+                : `https://vidbolt.xyz/movie/${tmdbId}`;
+        }
+    },
+    {
+        id: 'filmu',
+        name: 'Filmu (Vidly)',
+        description: 'Stable player engine with multiple fallback mirrors',
+        features: ['Multi-mirrors', 'HD', 'Subs'],
+        icon: '🎬',
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+            return mediaType === 'tv' && season !== undefined && episode !== undefined
+                ? `https://vidly.pro/tv/${tmdbId}/${season}/${episode}`
+                : `https://vidly.pro/movie/${tmdbId}`;
+        }
+    },
+    {
         id: 'gdmirror',
         name: 'GD Mirror (G-Drive)',
         description: 'Google Drive cloud mirror featuring high speeds and dual audio',
@@ -76,108 +115,34 @@ export const videoSources: VideoSource[] = [
         icon: '📂',
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://databasegdriveplayer.co/player.php?type=series&tmdb=${tmdbId}&season=${season}&episode=${episode}`
-                : `https://databasegdriveplayer.co/player.php?tmdb=${tmdbId}`;
+                ? `https://streams.iqsmartgames.com/embed/tv/${tmdbId}/${season}/${episode}?key=${GD_KEY}`
+                : `https://streams.iqsmartgames.com/embed/movie/${imdbId || tmdbId}?key=${GD_KEY}`;
         }
     },
     {
-        id: 'screenscape',
-        name: 'Screenscape',
-        description: 'Hindi dubbed streams with clean ad-free playback options',
-        features: ['Hindi Dub', 'HD', 'No-Ads'],
-        icon: '🇮🇳',
+        id: 'cineverse',
+        name: 'Cineverse',
+        description: 'Multi-source stream engine with subtitles',
+        features: ['Multi-Source', 'HD', 'Subs'],
+        icon: '🍿',
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://screenscape.me/embed?tmdb=${tmdbId}&s=${season}&e=${episode}`
-                : `https://screenscape.me/embed?tmdb=${tmdbId}`;
+                ? `https://rozgarlelo.modiplay.xyz/embed/tmdb/tv?id=${tmdbId}&s=${season}&e=${episode}`
+                : `https://rozgarlelo.modiplay.xyz/embed/tmdb/movie?id=${tmdbId}`;
         }
     },
     {
-        id: 'peachify',
-        name: 'Peachify (Hindi)',
-        description: 'Dedicated server for Indian content and Hindi dubbed releases',
-        features: ['Hindi Dub', 'Fast', 'HD'],
-        icon: '🍑',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://peachify.pro/embed/movie/${tmdbId}`;
-        }
-    },
-    {
-        id: 'nhdapi',
-        name: 'NHDAPI (Multi)',
-        description: 'Universal streaming API with dual audio and subtitle options',
-        features: ['Hindi Dub', 'Ad-Free', 'Subs'],
-        icon: '🌍',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            const apiKey = process.env.NEXT_PUBLIC_NHD_API_KEY || 'a577a492ba78cc40abab06b3e8be7b49ddd18056348fa897';
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://nhdapi.com/tv/${tmdbId}/${season}/${episode}?key=${apiKey}`
-                : `https://nhdapi.com/movie/${tmdbId}?key=${apiKey}`;
-        }
-    },
-    {
-        id: 'vidsrcto',
-        name: 'VidSrc TO',
-        description: 'Highly stable primary streaming server',
-        features: ['Stable', 'HD', 'Fast'],
+        id: 'vidsrcpm',
+        name: 'VidSrc (PM)',
+        description: 'Active, unblocked VidSrc high-speed mirror',
+        features: ['VidSrc Mirror', 'HD', 'Fast'],
         icon: '🚀',
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
             const idParam = imdbId || tmdbId;
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.to/embed/tv/${idParam}/${season}/${episode}`
-                : `https://vidsrc.to/embed/movie/${idParam}`;
+                ? `https://vidsrc.pm/embed/tv/${idParam}/${season}/${episode}`
+                : `https://vidsrc.pm/embed/movie/${idParam}`;
         }
-    },
-    {
-        id: 'vidsrcme',
-        name: 'VidSrc ME',
-        description: 'VidSrc mirror (often bypasses blocks)',
-        features: ['Backup', 'Alternative', 'HD'],
-        icon: '🎬',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            const idParam = imdbId ? `imdb=${imdbId}` : `tmdb=${tmdbId}`;
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.me/embed/tv?${idParam}&season=${season}&episode=${episode}`
-                : `https://vidsrc.me/embed/${mediaType}?${idParam}`;
-        }
-    },
-    {
-        id: 'vidsrccc',
-        name: 'VidSrc CC',
-        description: 'VidSrc with more language options',
-        features: ['Hindi Dub', 'Multi-lang', 'Subs'],
-        icon: '🔗',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            const idParam = imdbId || tmdbId;
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.cc/v2/embed/tv/${idParam}/${season}/${episode}`
-                : `https://vidsrc.cc/v2/embed/${mediaType}/${idParam}`;
-        }
-    },
-    {
-        id: 'embedsu',
-        name: 'Embed.su',
-        description: 'Fast alternative with multiple mirrors',
-        features: ['Clean', 'Multi-mirrors', 'HD'],
-        icon: '💎',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
-            return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://embed.su/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://embed.su/embed/movie/${tmdbId}`;
-        }
-    },
-    {
-        id: 'superembed',
-        name: 'SuperEmbed',
-        description: 'Popular alternative with good quality',
-        features: ['Fast', 'HD', 'Reliable'],
-        icon: '🔄',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season = 1, episode = 1) =>
-            mediaType === 'movie'
-                ? `https://multiembed.mov/directstream.php?video_id=${tmdbId}`
-                : `https://multiembed.mov/directstream.php?video_id=${tmdbId}&s=${season}&e=${episode}`
     }
 ];
 
@@ -188,7 +153,7 @@ export function getSourceById(id: string): VideoSource | undefined {
 
 // Get default source
 export function getDefaultSource(): VideoSource {
-    return videoSources.find(s => s.id === 'videasy') || videoSources[0];
+    return videoSources.find(s => s.id === 'vidlink') || videoSources[0];
 }
 
 // Get embed URL for a source

@@ -23,7 +23,7 @@ export default function WatchPage() {
     const [selectedEpisode, setSelectedEpisode] = useState(1);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedSource, setSelectedSource] = useState('videasy'); // Defaults to Videasy (Cineby)
+    const [selectedSource, setSelectedSource] = useState('vidlink'); // Defaults to VidLink PRO
     const [isServerListExpanded, setIsServerListExpanded] = useState(false);
     const [startProgress, setStartProgress] = useState<number>(0);
     const lastSavedTime = useRef<number>(0);
@@ -44,7 +44,7 @@ export default function WatchPage() {
 
                 // Auto-switch to dedicated anime server if media is animation/anime
                 if (data?.genres?.some(g => g.name.toLowerCase().includes('animation') || g.name.toLowerCase().includes('anime'))) {
-                    setSelectedSource('autoembed');
+                    setSelectedSource('vidrift');
                 }
 
                 if (type === 'tv' && data?.seasons && data.seasons.length > 0) {

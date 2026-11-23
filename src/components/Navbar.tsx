@@ -90,8 +90,8 @@ export default function Navbar() {
             <nav className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12">
                 <div className="flex items-center justify-between h-16 md:h-20">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2.5 group">
-                        <div className="relative w-10 h-10 group-hover:scale-105 transition-transform duration-300">
+                    <Link href="/" className="flex items-center gap-2 group shrink-0">
+                        <div className="relative w-9 h-9 group-hover:scale-105 transition-transform duration-300">
                             <Image
                                 src="/logo.webp"
                                 alt="TogetherWatch Logo"
@@ -100,31 +100,31 @@ export default function Navbar() {
                                 priority
                             />
                         </div>
-                        <span className="font-bold text-xl hidden sm:block">
+                        <span className="font-bold text-lg sm:text-xl hidden sm:block whitespace-nowrap">
                             Together<span className="text-accent">Watch</span>
                         </span>
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center gap-1">
+                    <div className="hidden lg:flex items-center gap-0.5 xl:gap-1 text-[13px] xl:text-sm font-medium">
                         <Link
                             href="/"
-                            className="px-4 py-2 text-text-secondary hover:text-white transition-colors"
+                            className="px-2 xl:px-3 py-1.5 text-text-secondary hover:text-white transition-colors whitespace-nowrap"
                         >
                             Home
                         </Link>
                         <Link
                             href="/browse"
-                            className="px-4 py-2 text-text-secondary hover:text-white transition-colors"
+                            className="px-2 xl:px-3 py-1.5 text-text-secondary hover:text-white transition-colors whitespace-nowrap"
                         >
                             Browse
                         </Link>
 
                         {/* Genre Dropdown */}
                         <div className="relative group/genre">
-                            <button className="px-4 py-2 text-text-secondary hover:text-white transition-colors flex items-center gap-1">
-                                Genre
-                                <svg className="w-4 h-4 transition-transform duration-300 group-hover/genre:rotate-180" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            <button className="px-2 xl:px-3 py-1.5 text-text-secondary hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap">
+                                <span>Genre</span>
+                                <svg className="w-3.5 h-3.5 transition-transform duration-300 group-hover/genre:rotate-180" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-48 opacity-0 invisible group-hover/genre:opacity-100 group-hover/genre:visible transition-all duration-200 z-50">
                                 <div className="bg-[#0b0b0b]/95 border border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-md grid grid-cols-1 gap-0.5">
@@ -143,9 +143,9 @@ export default function Navbar() {
 
                         {/* OTT Dropdown */}
                         <div className="relative group/ott">
-                            <button className="px-4 py-2 text-text-secondary hover:text-white transition-colors flex items-center gap-1">
-                                OTT
-                                <svg className="w-4 h-4 transition-transform duration-300 group-hover/ott:rotate-180" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            <button className="px-2 xl:px-3 py-1.5 text-text-secondary hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap">
+                                <span>OTT</span>
+                                <svg className="w-3.5 h-3.5 transition-transform duration-300 group-hover/ott:rotate-180" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-48 opacity-0 invisible group-hover/ott:opacity-100 group-hover/ott:visible transition-all duration-200 z-50">
                                 <div className="bg-[#0b0b0b]/95 border border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-md grid grid-cols-1 gap-0.5">
@@ -164,25 +164,25 @@ export default function Navbar() {
 
                         <Link
                             href="/browse?type=movie"
-                            className="px-4 py-2 text-text-secondary hover:text-white transition-colors"
+                            className="px-2 xl:px-3 py-1.5 text-text-secondary hover:text-white transition-colors whitespace-nowrap"
                         >
                             Movies
                         </Link>
                         <Link
                             href="/browse?type=tv"
-                            className="px-4 py-2 text-text-secondary hover:text-white transition-colors"
+                            className="px-2 xl:px-3 py-1.5 text-text-secondary hover:text-white transition-colors whitespace-nowrap"
                         >
                             TV Shows
                         </Link>
                         <Link
                             href="/watchlist"
-                            className="px-4 py-2 text-text-secondary hover:text-white transition-colors"
+                            className="px-2 xl:px-3 py-1.5 text-text-secondary hover:text-white transition-colors whitespace-nowrap"
                         >
                             Watchlist
                         </Link>
                         <Link
                             href="/watch-together"
-                            className="px-4 py-2 text-accent hover:text-accent-light transition-colors font-medium"
+                            className="px-2.5 xl:px-3.5 py-1.5 text-accent hover:text-accent-light transition-colors font-semibold whitespace-nowrap"
                         >
                             Watch Together
                         </Link>
@@ -346,9 +346,9 @@ export default function Navbar() {
                                         {/* Desktop Sign In Button */}
                                         <Link
                                             href="/login"
-                                            className="hidden sm:flex items-center gap-2 px-6 py-2 bg-accent hover:bg-accent-light rounded-lg transition-colors text-white text-sm font-medium"
+                                            className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 bg-accent hover:bg-accent-light rounded-lg transition-colors text-white text-xs xl:text-[13px] font-semibold whitespace-nowrap shadow-md shadow-accent/20"
                                         >
-                                            <LogIn className="w-4 h-4" />
+                                            <LogIn className="w-3.5 h-3.5" />
                                             <span>Sign In</span>
                                         </Link>
 
@@ -370,7 +370,7 @@ export default function Navbar() {
                         {/* Mobile Menu Button */}
                         <button
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="md:hidden p-2 hover:bg-bg-hover rounded-lg transition-colors"
+                            className="lg:hidden p-2 hover:bg-bg-hover rounded-lg transition-colors"
                         >
                             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
@@ -380,7 +380,7 @@ export default function Navbar() {
 
             {/* Mobile Menu */}
             {isMobileMenuOpen && (
-                <div className="md:hidden glass animate-slide-down">
+                <div className="lg:hidden glass animate-slide-down">
                     <div className="px-4 py-4 space-y-1">
                         <Link
                             href="/"

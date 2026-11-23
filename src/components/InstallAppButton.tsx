@@ -51,10 +51,10 @@ export default function InstallAppButton({ variant = 'navbar', onInstalled }: In
         return (
             <button
                 onClick={handleClick}
-                className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-white text-xs font-semibold tracking-wide transition-all duration-300 hover:scale-105 hover:border-accent/50 shadow-sm"
+                className="hidden xl:flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-white text-[11px] font-semibold tracking-wide transition-all duration-300 hover:scale-105 hover:border-accent/50 shadow-sm whitespace-nowrap shrink-0"
                 title="Install TogetherWatch App"
             >
-                <Download className="w-3.5 h-3.5 text-accent animate-bounce" />
+                <Download className="w-3 h-3 text-accent animate-bounce" />
                 <span>Install App</span>
             </button>
         );

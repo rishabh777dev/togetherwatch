@@ -254,158 +254,188 @@ export default function WatchPage() {
                 </div>
             )}
 
-            {/* Player Container */}
-            <div className="pt-20 px-4 sm:px-6 lg:px-8 max-w-[1800px] mx-auto flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-100px)] overflow-y-auto lg:overflow-hidden relative z-10">
+            {/* Main Cinema Player Container */}
+            <div className="pt-20 sm:pt-24 px-3 sm:px-6 lg:px-10 max-w-[1700px] mx-auto relative z-10">
                 
-                {/* Left Side: Video Player Container */}
-                <div className="flex-1 min-w-0 flex flex-col gap-4 h-full">
-                    <div className="w-full aspect-video bg-black/80 backdrop-blur-md relative border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden z-10 flex-1">
-                        <iframe
-                            key={`${selectedSource}-${tmdbId}-${selectedSeason}-${selectedEpisode}`}
-                            src={embedUrl}
-                            className="w-full h-full"
-                            frameBorder="0"
-                            allowFullScreen
-                            referrerPolicy="no-referrer"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        />
-                    </div>
-                    
-                    {/* Title & Metadata under player */}
-                    <div className="hidden lg:block">
-                        <h1 className="text-3xl font-black uppercase text-white tracking-tight truncate drop-shadow-md">
-                            {title} {type === 'tv' && `• S${selectedSeason} E${selectedEpisode}`}
-                        </h1>
-                        <div className="flex items-center gap-4 text-xs font-bold text-white/50 mt-1.5 uppercase tracking-wider">
-                            {media.vote_average > 0 && (
-                                <span className="flex items-center gap-1.5 text-yellow-500">
-                                    <Star className="w-4 h-4 fill-yellow-500" />
-                                    {media.vote_average.toFixed(1)} Rating
-                                </span>
-                            )}
-                            {releaseYear && (
-                                <>
-                                    <span className="w-1 h-1 rounded-full bg-white/20" />
-                                    <span>{releaseYear}</span>
-                                </>
-                            )}
-                            {media.runtime && media.runtime > 0 && (
-                                <>
-                                    <span className="w-1 h-1 rounded-full bg-white/20" />
-                                    <span>
-                                        {media.runtime >= 60 ? `${Math.floor(media.runtime / 60)}h ${media.runtime % 60}m` : `${media.runtime}m`}
-                                    </span>
-                                </>
-                            )}
-                        </div>
-                    </div>
+                {/* 1. Large Cinema Video Player */}
+                <div className="w-full aspect-video bg-black/90 backdrop-blur-md relative border border-white/10 rounded-2xl sm:rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden z-10">
+                    <iframe
+                        key={`${selectedSource}-${tmdbId}-${selectedSeason}-${selectedEpisode}`}
+                        src={embedUrl}
+                        className="w-full h-full border-0"
+                        allowFullScreen
+                        referrerPolicy="no-referrer"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    />
                 </div>
 
-                {/* Right Side: Streaming Info & Server Card */}
-                <div className="w-full lg:w-[420px] shrink-0 bg-white/[0.02] backdrop-blur-2xl border border-white/10 rounded-2xl p-6 flex flex-col gap-6 overflow-y-auto no-scrollbar h-auto lg:h-full pb-10 shadow-[0_15px_35px_rgba(0,0,0,0.4)]">
+                {/* 2. Media Title, Quick Details, Actions & Expandable Server Selector */}
+                <div className="mt-4 sm:mt-6 bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl">
                     
-                    {/* Mobile Title */}
-                    <div className="lg:hidden flex flex-col mb-2">
-                        <h1 className="text-2xl font-black uppercase text-white tracking-tight leading-none mb-1">
-                            {title} {type === 'tv' && `• S${selectedSeason} E${selectedEpisode}`}
-                        </h1>
-                        <div className="flex items-center gap-3 text-xs font-bold text-white/50">
-                            {media.vote_average > 0 && <span className="text-yellow-500">{media.vote_average.toFixed(1)} ★</span>}
-                            {releaseYear && <span>{releaseYear}</span>}
+                    {/* Top Row: Title, Metadata & Watch Together CTA */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 sm:pb-5 border-b border-white/10">
+                        <div className="min-w-0">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black uppercase text-white tracking-tight drop-shadow-md truncate">
+                                {title} {type === 'tv' && `• S${selectedSeason} E${selectedEpisode}`}
+                            </h1>
+                            <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs font-bold text-white/50 mt-1.5 uppercase tracking-wider">
+                                {media.vote_average > 0 && (
+                                    <span className="flex items-center gap-1.5 text-yellow-500">
+                                        <Star className="w-4 h-4 fill-yellow-500" />
+                                        {media.vote_average.toFixed(1)} Rating
+                                    </span>
+                                )}
+                                {releaseYear && (
+                                    <>
+                                        <span className="w-1 h-1 rounded-full bg-white/20" />
+                                        <span>{releaseYear}</span>
+                                    </>
+                                )}
+                                {media.runtime && media.runtime > 0 && (
+                                    <>
+                                        <span className="w-1 h-1 rounded-full bg-white/20" />
+                                        <span>
+                                            {media.runtime >= 60 ? `${Math.floor(media.runtime / 60)}h ${media.runtime % 60}m` : `${media.runtime}m`}
+                                        </span>
+                                    </>
+                                )}
+                                <span className="w-1 h-1 rounded-full bg-white/20" />
+                                <span className="text-white/70 px-2 py-0.5 rounded bg-white/10 text-[10px] tracking-widest font-black">
+                                    {type === 'tv' ? 'TV SERIES' : 'MOVIE'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Watch Together Party CTA */}
+                        <div className="flex items-center gap-3 shrink-0">
+                            <Link
+                                href={`/room/create?type=${type}&id=${roomMediaId}${type === 'tv' ? `&s=${selectedSeason}&e=${selectedEpisode}` : ''}`}
+                                className="w-full sm:w-auto bg-accent hover:bg-accent-light text-white flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 rounded-xl text-xs font-black uppercase tracking-[0.16em] transition-all shadow-lg shadow-accent/25 border border-accent/30 hover:scale-[1.02]"
+                            >
+                                <Users className="w-4 h-4" />
+                                <span>Watch Together</span>
+                            </Link>
                         </div>
                     </div>
 
-                    {/* Server Selector Area - Collapsible Accordion on Mobile */}
-                    <div>
-                        <button
-                            onClick={() => setIsServerListExpanded(!isServerListExpanded)}
-                            className="w-full flex items-center justify-between py-1 mb-2 text-left group"
-                        >
-                            <div className="flex items-center gap-2">
-                                <h3 className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-white/45 group-hover:text-white transition-colors">
-                                    Streaming Servers
+                    {/* Server Strip / Selector: "Choose Server" (Expandable & Collapsible) */}
+                    <div className="pt-4 sm:pt-5">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2.5">
+                                <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                                    Choose Server
                                 </h3>
                                 {videoSources.find(s => s.id === selectedSource) && (
-                                    <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">
-                                        {videoSources.find(s => s.id === selectedSource)?.name}
+                                    <span className="text-[11px] font-bold text-accent bg-accent/15 px-2.5 py-0.5 rounded-full border border-accent/25">
+                                        Current: {videoSources.find(s => s.id === selectedSource)?.name}
                                     </span>
                                 )}
                             </div>
-                            <div className="p-1 rounded-lg bg-white/5 text-white/50 group-hover:text-white transition-colors">
-                                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isServerListExpanded ? 'rotate-180' : ''}`} />
-                            </div>
-                        </button>
 
-                        <div className={`transition-all duration-300 overflow-hidden ${isServerListExpanded ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0 lg:max-h-[600px] lg:opacity-100'}`}>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-2 gap-1.5 sm:gap-2 pt-1">
-                                {videoSources.map(source => (
-                                    <button
-                                        key={source.id}
-                                        onClick={() => {
-                                            setSelectedSource(source.id);
-                                            savePreferredServer(source.id);
-                                            setIsServerListExpanded(false);
-                                        }}
-                                        className={`flex items-center justify-between px-2.5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all duration-300 border text-left
-                                            ${selectedSource === source.id 
-                                            ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.25)] scale-[1.02]' 
-                                            : 'bg-white/[0.02] backdrop-blur-md text-white/60 hover:bg-white/[0.08] hover:text-white border-white/[0.05]'}`}
-                                    >
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                            <span className="text-xs sm:text-sm shrink-0">{source.icon}</span>
-                                            <span className="truncate">{source.name}</span>
-                                        </div>
-                                        {source.isAnime && (
-                                            <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded shrink-0 ${selectedSource === source.id ? 'bg-black/10 text-pink-700' : 'bg-pink-500/20 text-pink-400 border border-pink-500/30'}`}>
-                                                ANIME
+                            {/* Expand / Collapse Button */}
+                            <button
+                                onClick={() => setIsServerListExpanded(!isServerListExpanded)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 hover:text-white transition-all border border-white/10"
+                            >
+                                <span>{isServerListExpanded ? 'Collapse' : 'All Servers (10)'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isServerListExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                        </div>
+
+                        {/* Collapsed view: Horizontal scrolling server bar (MultiMovies style) */}
+                        {!isServerListExpanded ? (
+                            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-1">
+                                {videoSources.map(source => {
+                                    const isSelected = selectedSource === source.id;
+                                    return (
+                                        <button
+                                            key={source.id}
+                                            onClick={() => {
+                                                setSelectedSource(source.id);
+                                                savePreferredServer(source.id);
+                                            }}
+                                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap border shrink-0
+                                                ${isSelected 
+                                                    ? 'bg-accent text-white border-accent shadow-lg shadow-accent/30 scale-[1.02]' 
+                                                    : 'bg-black/40 text-white/70 hover:bg-white/10 hover:text-white border-white/10'}`}
+                                        >
+                                            <span className="text-sm shrink-0">{source.icon}</span>
+                                            <span>{source.name}</span>
+                                            {source.isAnime && (
+                                                <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded ${isSelected ? 'bg-black/20 text-white' : 'bg-pink-500/20 text-pink-300'}`}>
+                                                    ANIME
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            /* Expanded view: Clean grid of all servers */
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 pt-1 animate-fade-in">
+                                {videoSources.map(source => {
+                                    const isSelected = selectedSource === source.id;
+                                    return (
+                                        <button
+                                            key={source.id}
+                                            onClick={() => {
+                                                setSelectedSource(source.id);
+                                                savePreferredServer(source.id);
+                                            }}
+                                            className={`flex items-center justify-between p-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border text-left
+                                                ${isSelected 
+                                                    ? 'bg-accent text-white border-accent shadow-lg shadow-accent/30 scale-[1.02]' 
+                                                    : 'bg-black/40 text-white/70 hover:bg-white/10 hover:text-white border-white/10'}`}
+                                        >
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="text-base shrink-0">{source.icon}</span>
+                                                <span className="truncate">{source.name}</span>
+                                            </div>
+                                            {source.isAnime && (
+                                                <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded shrink-0 ${isSelected ? 'bg-black/20 text-white' : 'bg-pink-500/20 text-pink-300'}`}>
+                                                    ANIME
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Genres & Synopsis info row */}
+                        <div className="mt-5 pt-4 border-t border-white/10 grid md:grid-cols-3 gap-4">
+                            {/* Genres */}
+                            {media.genres && media.genres.length > 0 && (
+                                <div>
+                                    <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-white/40 mb-2">Genres</h4>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {media.genres.map((genre) => (
+                                            <span
+                                                key={genre.id}
+                                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase text-white/70 bg-white/5 border border-white/10"
+                                            >
+                                                {genre.name}
                                             </span>
-                                        )}
-                                    </button>
-                                ))}
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Synopsis */}
+                            <div className={media.genres && media.genres.length > 0 ? "md:col-span-2" : "md:col-span-3"}>
+                                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-white/40 mb-1.5">Synopsis</h4>
+                                <p className="text-white/60 text-xs sm:text-sm leading-relaxed line-clamp-3 hover:line-clamp-none transition-all cursor-pointer">
+                                    {media.overview || 'No synopsis available.'}
+                                </p>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex flex-col gap-2">
-                        <Link
-                            href={`/room/create?type=${type}&id=${roomMediaId}${type === 'tv' ? `&s=${selectedSeason}&e=${selectedEpisode}` : ''}`}
-                            className="bg-accent hover:bg-accent-light text-white flex items-center justify-center gap-2 py-3.5 rounded-xl text-xs font-black uppercase tracking-[0.18em] transition-all shadow-lg shadow-accent/20 border border-accent/25"
-                        >
-                            <Users className="w-4 h-4" />
-                            Watch Together
-                        </Link>
-                    </div>
-
-                    {/* Genres */}
-                    {media.genres && media.genres.length > 0 && (
-                        <div>
-                            <h4 className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-white/45 mb-2.5">Genres</h4>
-                            <div className="flex flex-wrap gap-1.5">
-                                {media.genres.map((genre) => (
-                                    <span
-                                        key={genre.id}
-                                        className="px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase text-white/70 bg-white/5 border border-white/5 backdrop-blur-md"
-                                    >
-                                        {genre.name}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Synopsis */}
-                    <div>
-                        <h4 className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-white/45 mb-2">Synopsis</h4>
-                        <p className="text-white/60 text-xs leading-relaxed font-medium line-clamp-4 hover:line-clamp-none transition-all">
-                            {media.overview}
-                        </p>
                     </div>
                 </div>
             </div>
 
             {/* Bottom Content Area: TV Show Seasons & Episode List directly ABOVE Actors section */}
-            <div className="px-4 sm:px-6 lg:px-8 max-w-[1800px] mx-auto py-8 sm:py-10 mt-6 border-t border-white/10 relative z-10 bg-[#0b0b0b]/40 backdrop-blur-md rounded-t-3xl">
+            <div className="px-3 sm:px-6 lg:px-10 max-w-[1700px] mx-auto py-8 sm:py-10 mt-6 border-t border-white/10 relative z-10 bg-[#0b0b0b]/40 backdrop-blur-md rounded-t-3xl">
                 
                 {/* TV Show Seasons & Episode Selector Section */}
                 {type === 'tv' && media.seasons && media.seasons.length > 0 && (

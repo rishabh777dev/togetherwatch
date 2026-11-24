@@ -1,10 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import Navbar from '@/components/Navbar';
 import { getAnimeDetails } from '@/lib/anilist';
-import { getPreferredServer, savePreferredServer, saveContinueWatchingItem } from '@/lib/watchProgress';
+import { getPreferredServer, savePreferredServer, saveContinueWatchingItem, getContinueWatchingItem } from '@/lib/watchProgress';
 import { ExternalLink, Loader2, Play } from 'lucide-react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface AnimeDetails {
@@ -30,14 +31,45 @@ function sanitizeHtml(html: string): string {
         .replace(/javascript:/gi, '');
 }
 
-export default function AnimeWatchPage() {
+function AnimeWatchContent() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const animeId = params.id as string;
 
+    const urlEp = searchParams.get('e') || searchParams.get('ep');
+
     const [anime, setAnime] = useState<AnimeDetails | null>(null);
-    const [currentEpisode, setCurrentEpisode] = useState(1);
+
+    // Synchronous initial episode from URL param OR saved progress
+    const [currentEpisode, setCurrentEpisode] = useState<number>(() => {
+        if (urlEp && !isNaN(Number(urlEp))) return Number(urlEp);
+        if (typeof window !== 'undefined') {
+            const saved = getContinueWatchingItem(animeId, 'tv');
+            if (saved?.episode) return saved.episode;
+        }
+        return 1;
+    });
+
     const [selectedSource, setSelectedSource] = useState('vidrift');
     const [loading, setLoading] = useState(true);
+
+    // Sync episode if URL changes
+    useEffect(() => {
+        if (urlEp && !isNaN(Number(urlEp))) {
+            const ep = Number(urlEp);
+            setCurrentEpisode(prev => (prev !== ep ? ep : prev));
+        }
+    }, [urlEp]);
+
+    // Keep URL in sync on mount so refresh never loses episode
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const currentE = searchParams.get('e') || searchParams.get('ep');
+            if (!currentE) {
+                window.history.replaceState(null, '', `/watch/anime/${animeId}?e=${currentEpisode}`);
+            }
+        }
+    }, [animeId, currentEpisode, searchParams]);
 
     useEffect(() => {
         const saved = getPreferredServer();
@@ -45,6 +77,13 @@ export default function AnimeWatchPage() {
             setSelectedSource(saved);
         }
     }, []);
+
+    const handleEpisodeChange = (epNum: number) => {
+        setCurrentEpisode(epNum);
+        if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', `/watch/anime/${animeId}?e=${epNum}`);
+        }
+    };
 
     useEffect(() => {
         if (!anime) return;
@@ -80,31 +119,26 @@ export default function AnimeWatchPage() {
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-bg-primary flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin text-accent mx-auto mb-4" />
-                    <p className="text-text-secondary">Loading anime...</p>
-                </div>
-            </main>
+            <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
         );
     }
 
     if (!anime) {
         return (
-            <main className="min-h-screen bg-bg-primary">
-                <Navbar />
-                <div className="pt-20 text-center">
-                    <h1 className="text-2xl font-bold">Anime not found</h1>
+            <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-2">Anime Not Found</h2>
+                    <p className="text-text-secondary">Could not find the requested anime.</p>
                 </div>
-            </main>
+            </div>
         );
     }
 
     const totalEpisodes = anime.episodes || 12;
 
-    // Generate embed URL based on selected source
     let embedUrl = '';
-
     if (selectedSource === 'vidrift') {
         embedUrl = `https://embed.vidrift.net/embed/anilist/${animeId}/${currentEpisode}`;
     } else if (selectedSource === 'autoembed') {
@@ -154,7 +188,7 @@ export default function AnimeWatchPage() {
                             src={embedUrl}
                             className="w-full h-full border-0"
                             allowFullScreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         />
                     </div>
 
@@ -190,7 +224,7 @@ export default function AnimeWatchPage() {
                     {/* Quick Navigation */}
                     <div className="flex gap-3 mb-6">
                         <button
-                            onClick={() => setCurrentEpisode(Math.max(1, currentEpisode - 1))}
+                            onClick={() => handleEpisodeChange(Math.max(1, currentEpisode - 1))}
                             disabled={currentEpisode === 1}
                             className="px-6 py-3 bg-bg-card hover:bg-bg-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
                         >
@@ -208,7 +242,7 @@ export default function AnimeWatchPage() {
                         </a>
 
                         <button
-                            onClick={() => setCurrentEpisode(Math.min(totalEpisodes, currentEpisode + 1))}
+                            onClick={() => handleEpisodeChange(Math.min(totalEpisodes, currentEpisode + 1))}
                             disabled={currentEpisode === totalEpisodes}
                             className="px-6 py-3 bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors ml-auto"
                         >
@@ -226,7 +260,7 @@ export default function AnimeWatchPage() {
                             {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((ep) => (
                                 <button
                                     key={ep}
-                                    onClick={() => setCurrentEpisode(ep)}
+                                    onClick={() => handleEpisodeChange(ep)}
                                     className={`
                                         py-3 px-2 rounded-lg font-semibold transition-all transform hover:scale-105
                                         ${currentEpisode === ep
@@ -254,5 +288,17 @@ export default function AnimeWatchPage() {
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function AnimeWatchPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+        }>
+            <AnimeWatchContent />
+        </Suspense>
     );
 }

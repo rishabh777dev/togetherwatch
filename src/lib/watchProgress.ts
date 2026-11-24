@@ -62,14 +62,22 @@ export function getContinueWatchingList(): ContinueWatchingItem[] {
 /**
  * Save or update a single Continue Watching item in localStorage
  */
-export function saveContinueWatchingItem(item: ContinueWatchingItem): void {
+export function saveContinueWatchingItem(item: ContinueWatchingItem, alternateId?: string | null): void {
     if (typeof window === 'undefined' || !item || !item.media_id) return;
     try {
         const list = getContinueWatchingList();
-        // Remove existing item with same media_id and media_type
-        const filtered = list.filter(
-            i => !(String(i.media_id) === String(item.media_id) && i.media_type === item.media_type)
-        );
+        const cleanId = String(item.media_id).trim();
+        const cleanAlt = alternateId ? String(alternateId).trim() : null;
+
+        // Remove existing item with same media_id or alternateId and media_type
+        const filtered = list.filter(i => {
+            if (i.media_type !== item.media_type) return true;
+            const existingId = String(i.media_id).trim();
+            if (existingId === cleanId) return false;
+            if (cleanAlt && existingId === cleanAlt) return false;
+            return true;
+        });
+
         // Put updated/new item at the top, cap to latest 20 items
         const updated = [item, ...filtered].slice(0, 20);
         localStorage.setItem(CONTINUE_WATCHING_STORAGE_KEY, JSON.stringify(updated));
@@ -82,13 +90,20 @@ export function saveContinueWatchingItem(item: ContinueWatchingItem): void {
 /**
  * Remove an item from Continue Watching list in localStorage
  */
-export function removeContinueWatchingItem(mediaId: string, mediaType: 'movie' | 'tv'): void {
-    if (typeof window === 'undefined') return;
+export function removeContinueWatchingItem(mediaId: string, mediaType: 'movie' | 'tv', alternateId?: string | null): void {
+    if (typeof window === 'undefined' || !mediaId) return;
     try {
         const list = getContinueWatchingList();
-        const filtered = list.filter(
-            i => !(String(i.media_id) === String(mediaId) && i.media_type === mediaType)
-        );
+        const cleanId = String(mediaId).trim();
+        const cleanAlt = alternateId ? String(alternateId).trim() : null;
+
+        const filtered = list.filter(i => {
+            if (i.media_type !== mediaType) return true;
+            const existingId = String(i.media_id).trim();
+            if (existingId === cleanId) return false;
+            if (cleanAlt && existingId === cleanAlt) return false;
+            return true;
+        });
         localStorage.setItem(CONTINUE_WATCHING_STORAGE_KEY, JSON.stringify(filtered));
         window.dispatchEvent(new Event('togetherwatch:continue_watching_updated'));
     } catch {
@@ -97,9 +112,21 @@ export function removeContinueWatchingItem(mediaId: string, mediaType: 'movie' |
 }
 
 /**
- * Look up a specific Continue Watching item by mediaId and type
+ * Look up a specific Continue Watching item by mediaId and type (with optional alternateId)
  */
-export function getContinueWatchingItem(mediaId: string, mediaType: 'movie' | 'tv'): ContinueWatchingItem | undefined {
+export function getContinueWatchingItem(
+    mediaId: string, 
+    mediaType: 'movie' | 'tv', 
+    alternateId?: string | null
+): ContinueWatchingItem | undefined {
+    if (typeof window === 'undefined' || !mediaId) return undefined;
     const list = getContinueWatchingList();
-    return list.find(i => String(i.media_id) === String(mediaId) && i.media_type === mediaType);
+    const cleanId = String(mediaId).trim();
+    const cleanAlt = alternateId ? String(alternateId).trim() : null;
+
+    return list.find(i => {
+        if (i.media_type !== mediaType) return false;
+        const existingId = String(i.media_id).trim();
+        return existingId === cleanId || (cleanAlt && existingId === cleanAlt);
+    });
 }

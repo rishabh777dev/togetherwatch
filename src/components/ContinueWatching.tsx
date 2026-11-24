@@ -190,6 +190,13 @@ export default function ContinueWatching() {
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
 
+                                {/* Season & Episode Badge for Series */}
+                                {item.media_type === 'tv' && (item.season || item.episode) && (
+                                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-md border border-white/10 text-[10px] font-black uppercase text-accent z-20">
+                                        S{item.season || 1} E{item.episode || 1}
+                                    </div>
+                                )}
+
                                 {/* Remove Button */}
                                 <button
                                     onClick={(e) => handleRemove(e, item.media_id, item.media_type)}

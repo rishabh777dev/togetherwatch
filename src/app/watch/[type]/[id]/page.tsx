@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Navbar from '@/components/Navbar';
 import ActorsRow from '@/components/ActorsRow';
 import RecommendationsGrid from '@/components/RecommendationsGrid';
@@ -14,26 +15,86 @@ import {
 import { Calendar, ChevronDown, Clock, Play, Star, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/lib/supabase';
 
-export default function WatchPage() {
+function WatchPageContent() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const type = params.type as 'movie' | 'tv';
     const idParam = params.id as string;
 
+    const urlSeason = searchParams.get('s');
+    const urlEpisode = searchParams.get('e');
+
     const [media, setMedia] = useState<Movie | null>(null);
-    const [selectedSeason, setSelectedSeason] = useState(1);
-    const [selectedEpisode, setSelectedEpisode] = useState(1);
+
+    // 1. Synchronously initialize season & episode from query params OR localStorage saved progress
+    const [selectedSeason, setSelectedSeason] = useState<number>(() => {
+        if (urlSeason && !isNaN(Number(urlSeason))) return Number(urlSeason);
+        if (typeof window !== 'undefined') {
+            const saved = getContinueWatchingItem(idParam, type);
+            if (saved?.season) return saved.season;
+        }
+        return 1;
+    });
+
+    const [selectedEpisode, setSelectedEpisode] = useState<number>(() => {
+        if (urlEpisode && !isNaN(Number(urlEpisode))) return Number(urlEpisode);
+        if (typeof window !== 'undefined') {
+            const saved = getContinueWatchingItem(idParam, type);
+            if (saved?.episode) return saved.episode;
+        }
+        return 1;
+    });
+
+    // 2. Synchronously initialize startProgress timestamp if resuming the saved episode/movie
+    const [startProgress, setStartProgress] = useState<number>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = getContinueWatchingItem(idParam, type);
+            const targetSeason = urlSeason ? Number(urlSeason) : saved?.season || 1;
+            const targetEpisode = urlEpisode ? Number(urlEpisode) : saved?.episode || 1;
+            if (saved && (type === 'movie' || (saved.season === targetSeason && saved.episode === targetEpisode))) {
+                if (saved.timestamp && saved.timestamp > 5) {
+                    return Math.floor(saved.timestamp);
+                }
+            }
+        }
+        return 0;
+    });
+
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedSource, setSelectedSource] = useState('vidlink'); // Defaults to VidLink PRO
     const [isServerListExpanded, setIsServerListExpanded] = useState(false);
-    const [startProgress, setStartProgress] = useState<number>(0);
     const lastSavedTime = useRef<number>(0);
     const { user } = useAuthStore();
+
+    // Sync state when URL searchParams change
+    useEffect(() => {
+        if (urlSeason && !isNaN(Number(urlSeason))) {
+            const s = Number(urlSeason);
+            setSelectedSeason(prev => (prev !== s ? s : prev));
+        }
+        if (urlEpisode && !isNaN(Number(urlEpisode))) {
+            const e = Number(urlEpisode);
+            setSelectedEpisode(prev => (prev !== e ? e : prev));
+        }
+    }, [urlSeason, urlEpisode]);
+
+    // Keep URL in sync on initial mount for series so refresh never loses season/episode
+    useEffect(() => {
+        if (type === 'tv' && typeof window !== 'undefined') {
+            const currentS = searchParams.get('s');
+            const currentE = searchParams.get('e');
+            if (!currentS || !currentE) {
+                const newUrl = `/watch/${type}/${idParam}?s=${selectedSeason}&e=${selectedEpisode}`;
+                window.history.replaceState(null, '', newUrl);
+            }
+        }
+    }, [type, idParam, selectedSeason, selectedEpisode, searchParams]);
 
     // Remember last used server from localStorage
     useEffect(() => {
@@ -42,6 +103,33 @@ export default function WatchPage() {
             setSelectedSource(savedServer);
         }
     }, []);
+
+    // Handlers for switching season & episode
+    const handleSelectSeason = (seasonNumber: number) => {
+        setSelectedSeason(seasonNumber);
+        setSelectedEpisode(1);
+        setStartProgress(0);
+        lastSavedTime.current = 0;
+        const newUrl = `/watch/${type}/${idParam}?s=${seasonNumber}&e=1`;
+        window.history.replaceState(null, '', newUrl);
+    };
+
+    const handleSelectEpisode = (episodeNumber: number) => {
+        setSelectedEpisode(episodeNumber);
+        lastSavedTime.current = 0;
+
+        // Check if there is existing progress for this exact episode
+        const canonicalId = String(media?.id || idParam);
+        const saved = getContinueWatchingItem(canonicalId, type, media?.imdbID);
+        if (saved && saved.season === selectedSeason && saved.episode === episodeNumber && saved.timestamp > 5) {
+            setStartProgress(Math.floor(saved.timestamp));
+        } else {
+            setStartProgress(0);
+        }
+
+        const newUrl = `/watch/${type}/${idParam}?s=${selectedSeason}&e=${episodeNumber}`;
+        window.history.replaceState(null, '', newUrl);
+    };
 
     useEffect(() => {
         if (!idParam) return;
@@ -78,12 +166,15 @@ export default function WatchPage() {
 
     useEffect(() => {
         if (!media) return;
-        const embedId = media?.imdbID || idParam;
+        const canonicalId = String(media.id || idParam);
+        const imdbId = media.imdbID;
 
         const loadProgress = async () => {
-            // 1. Check local storage first (instant for guests and authenticated users)
-            const localItem = getContinueWatchingItem(String(embedId), type);
-            if (localItem && localItem.timestamp > 10) {
+            // 1. Check local storage
+            const localItem = getContinueWatchingItem(canonicalId, type, imdbId) || getContinueWatchingItem(idParam, type);
+            const isTargetEpisode = type === 'movie' || (localItem && localItem.season === selectedSeason && localItem.episode === selectedEpisode);
+
+            if (isTargetEpisode && localItem && localItem.timestamp > 5) {
                 setStartProgress(Math.floor(localItem.timestamp));
             }
 
@@ -91,34 +182,34 @@ export default function WatchPage() {
             if (user) {
                 const { data, error } = await supabase
                     .from('watch_progress')
-                    .select('timestamp')
+                    .select('timestamp, progress, season, episode')
                     .eq('user_id', user.id)
-                    .eq('media_id', String(embedId))
+                    .eq('media_id', canonicalId)
                     .eq('media_type', type)
                     .eq('season', selectedSeason || 0)
                     .eq('episode', selectedEpisode || 0)
                     .single();
                 
-                if (!error && data && data.timestamp > 0) {
+                if (!error && data && data.timestamp > 5) {
                     setStartProgress(Math.floor(data.timestamp));
                 }
             }
 
-            // 3. Immediately register in Continue Watching list
+            // 3. Register in Continue Watching with preserved progress if on same episode
             saveContinueWatchingItem({
-                id: `${type}:${embedId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
-                media_id: String(embedId),
+                id: `${type}:${canonicalId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
+                media_id: canonicalId,
                 media_type: type,
                 title: media.title || media.name || 'Untitled',
                 poster_path: media.poster_path,
                 backdrop_path: media.backdrop_path,
                 season: selectedSeason || 1,
                 episode: selectedEpisode || 1,
-                progress: localItem?.progress || 0,
-                timestamp: localItem?.timestamp || 0,
-                duration: localItem?.duration || 0,
+                progress: isTargetEpisode ? (localItem?.progress || 0) : 0,
+                timestamp: isTargetEpisode ? (localItem?.timestamp || 0) : 0,
+                duration: isTargetEpisode ? (localItem?.duration || 0) : 0,
                 updated_at: new Date().toISOString()
-            });
+            }, imdbId);
         };
         
         loadProgress();
@@ -126,65 +217,80 @@ export default function WatchPage() {
 
     useEffect(() => {
         if (!media) return;
-        const embedId = media?.imdbID || idParam;
+        const canonicalId = String(media.id || idParam);
+        const imdbId = media.imdbID;
 
         const handleMessage = async (event: MessageEvent) => {
             try {
                 let data = event.data;
-                if (typeof data === 'string') data = JSON.parse(data);
+                if (typeof data === 'string') {
+                    try { data = JSON.parse(data); } catch { return; }
+                }
 
-                if (data && data.type === 'PLAYER_EVENT' && data.data?.event === 'timeupdate') {
-                    const currentTime = data.data.position || data.data.currentTime;
-                    const duration = data.data.duration;
-                    
-                    if (currentTime && duration && Math.abs(currentTime - lastSavedTime.current) > 5) {
-                        lastSavedTime.current = currentTime;
-                        const progressPercent = Math.min((currentTime / duration) * 100, 100);
-                        
-                        // 1. Save locally (persists for everyone!)
-                        saveContinueWatchingItem({
-                            id: `${type}:${embedId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
-                            media_id: String(embedId),
-                            media_type: type,
-                            title: media.title || media.name || 'Untitled',
-                            poster_path: media.poster_path,
-                            backdrop_path: media.backdrop_path,
-                            season: selectedSeason || 1,
-                            episode: selectedEpisode || 1,
-                            progress: progressPercent,
-                            timestamp: currentTime,
-                            duration: duration,
-                            updated_at: new Date().toISOString()
-                        });
+                if (!data) return;
 
-                        // 2. Also save to Supabase if user is logged in
-                        if (user) {
-                            const payload = {
-                                user_id: user.id,
-                                media_id: String(embedId),
+                // Support VidLink, Vidrift, and generic HTML5 postMessage formats
+                const isTimeUpdate = 
+                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'timeupdate' || data.data?.type === 'timeupdate')) ||
+                    data.event === 'timeupdate' ||
+                    data.type === 'timeupdate';
+
+                if (isTimeUpdate) {
+                    const timeData = (data.type === 'PLAYER_EVENT' && data.data) ? data.data : data;
+                    const currentTime = Number(timeData.position ?? timeData.currentTime ?? timeData.time);
+                    const duration = Number(timeData.duration);
+
+                    if (!isNaN(currentTime) && currentTime > 0) {
+                        if (Math.abs(currentTime - lastSavedTime.current) > 3) {
+                            lastSavedTime.current = currentTime;
+                            const totalDuration = !isNaN(duration) && duration > 0 ? duration : 0;
+                            const progressPercent = totalDuration > 0 ? Math.min((currentTime / totalDuration) * 100, 100) : 0;
+
+                            // 1. Save locally
+                            saveContinueWatchingItem({
+                                id: `${type}:${canonicalId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
+                                media_id: canonicalId,
                                 media_type: type,
-                                season: selectedSeason || 0,
-                                episode: selectedEpisode || 0,
+                                title: media.title || media.name || 'Untitled',
+                                poster_path: media.poster_path,
+                                backdrop_path: media.backdrop_path,
+                                season: selectedSeason || 1,
+                                episode: selectedEpisode || 1,
                                 progress: progressPercent,
-                                timestamp: currentTime,
-                                duration: duration,
+                                timestamp: Math.floor(currentTime),
+                                duration: Math.floor(totalDuration),
                                 updated_at: new Date().toISOString()
-                            };
+                            }, imdbId);
 
-                            const { data: existing } = await supabase
-                                .from('watch_progress')
-                                .select('id')
-                                .eq('user_id', user.id)
-                                .eq('media_id', String(embedId))
-                                .eq('media_type', type)
-                                .eq('season', selectedSeason || 0)
-                                .eq('episode', selectedEpisode || 0)
-                                .single();
+                            // 2. Also save to Supabase if user is logged in
+                            if (user) {
+                                const payload = {
+                                    user_id: user.id,
+                                    media_id: canonicalId,
+                                    media_type: type,
+                                    season: selectedSeason || 0,
+                                    episode: selectedEpisode || 0,
+                                    progress: progressPercent,
+                                    timestamp: Math.floor(currentTime),
+                                    duration: Math.floor(totalDuration),
+                                    updated_at: new Date().toISOString()
+                                };
 
-                            if (existing) {
-                                await supabase.from('watch_progress').update(payload).eq('id', existing.id);
-                            } else {
-                                await supabase.from('watch_progress').insert(payload);
+                                const { data: existing } = await supabase
+                                    .from('watch_progress')
+                                    .select('id')
+                                    .eq('user_id', user.id)
+                                    .eq('media_id', canonicalId)
+                                    .eq('media_type', type)
+                                    .eq('season', selectedSeason || 0)
+                                    .eq('episode', selectedEpisode || 0)
+                                    .single();
+
+                                if (existing) {
+                                    await supabase.from('watch_progress').update(payload).eq('id', existing.id);
+                                } else {
+                                    await supabase.from('watch_progress').insert(payload);
+                                }
                             }
                         }
                     }
@@ -205,8 +311,9 @@ export default function WatchPage() {
         ? getEmbedUrl(selectedSource, 'movie', tmdbId, imdbId)
         : getEmbedUrl(selectedSource, 'tv', tmdbId, imdbId, selectedSeason, selectedEpisode);
 
-    if (startProgress > 10) {
-        baseEmbedUrl += `${baseEmbedUrl.includes('?') ? '&' : '?'}t=${startProgress}&progress=${startProgress}`;
+    if (startProgress > 5) {
+        const sep = baseEmbedUrl.includes('?') ? '&' : '?';
+        baseEmbedUrl += `${sep}startAt=${startProgress}&t=${startProgress}&progress=${startProgress}`;
     }
     const embedUrl = baseEmbedUrl;
 
@@ -260,7 +367,7 @@ export default function WatchPage() {
                 {/* 1. Large Cinema Video Player */}
                 <div className="w-full aspect-video bg-black/90 backdrop-blur-md relative border border-white/10 rounded-2xl sm:rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden z-10">
                     <iframe
-                        key={`${selectedSource}-${tmdbId}-${selectedSeason}-${selectedEpisode}`}
+                        key={`${selectedSource}-${tmdbId}-${selectedSeason}-${selectedEpisode}-${startProgress > 5 ? startProgress : 0}`}
                         src={embedUrl}
                         className="w-full h-full border-0"
                         allowFullScreen
@@ -458,10 +565,7 @@ export default function WatchPage() {
                                     return (
                                         <button
                                             key={season.id}
-                                            onClick={() => {
-                                                setSelectedSeason(season.season_number);
-                                                setSelectedEpisode(1);
-                                            }}
+                                            onClick={() => handleSelectSeason(season.season_number)}
                                             className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap border ${
                                                 isSeasonSelected
                                                     ? 'bg-accent text-white border-accent shadow-lg shadow-accent/25 scale-[1.02]'
@@ -487,7 +591,7 @@ export default function WatchPage() {
                                     return (
                                         <div
                                             key={ep.id}
-                                            onClick={() => setSelectedEpisode(ep.episode_number)}
+                                            onClick={() => handleSelectEpisode(ep.episode_number)}
                                             className={`group relative cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 border p-2 sm:p-3 flex flex-row md:flex-col items-center md:items-stretch gap-3 ${
                                                 isSelected
                                                     ? 'bg-accent/15 border-accent shadow-xl shadow-accent/20 ring-1 ring-accent scale-[1.01]'
@@ -559,5 +663,20 @@ export default function WatchPage() {
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function WatchPage() {
+    return (
+        <Suspense fallback={
+            <main className="min-h-screen bg-[#0b0b0b]">
+                <Navbar />
+                <div className="pt-20 flex items-center justify-center h-[80vh]">
+                    <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+            </main>
+        }>
+            <WatchPageContent />
+        </Suspense>
     );
 }

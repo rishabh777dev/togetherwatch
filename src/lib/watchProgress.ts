@@ -18,6 +18,33 @@ export interface ContinueWatchingItem {
 
 export const PREFERRED_SERVER_STORAGE_KEY = 'togetherwatch_preferred_source';
 export const CONTINUE_WATCHING_STORAGE_KEY = 'togetherwatch_continue_watching';
+export const AUTOPLAY_NEXT_STORAGE_KEY = 'togetherwatch_autoplay_next';
+
+/**
+ * Get user's auto-play next episode preference (defaults to true)
+ */
+export function getAutoPlayNext(): boolean {
+    if (typeof window === 'undefined') return true;
+    try {
+        const val = localStorage.getItem(AUTOPLAY_NEXT_STORAGE_KEY);
+        return val === null ? true : val === 'true';
+    } catch {
+        return true;
+    }
+}
+
+/**
+ * Save user's auto-play next episode preference
+ */
+export function saveAutoPlayNext(enabled: boolean): void {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(AUTOPLAY_NEXT_STORAGE_KEY, String(enabled));
+        window.dispatchEvent(new CustomEvent('togetherwatch:autoplay_changed', { detail: enabled }));
+    } catch {
+        // Ignore localStorage errors
+    }
+}
 
 /**
  * Get user's preferred streaming server from localStorage

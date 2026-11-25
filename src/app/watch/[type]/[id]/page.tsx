@@ -10,9 +10,11 @@ import {
     getPreferredServer, 
     savePreferredServer, 
     getContinueWatchingItem, 
-    saveContinueWatchingItem 
+    saveContinueWatchingItem,
+    getAutoPlayNext,
+    saveAutoPlayNext
 } from '@/lib/watchProgress';
-import { Calendar, ChevronDown, Clock, Play, Star, Users } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Clock, Play, SkipForward, Sparkles, Star, Users, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -72,6 +74,20 @@ function WatchPageContent() {
     const lastSavedTime = useRef<number>(0);
     const { user } = useAuthStore();
 
+    // Auto-Play Next Episode State
+    const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
+        return getAutoPlayNext();
+    });
+    const autoPlayNextRef = useRef<boolean>(autoPlayNext);
+    useEffect(() => {
+        autoPlayNextRef.current = autoPlayNext;
+    }, [autoPlayNext]);
+
+    const [countdownActive, setCountdownActive] = useState<boolean>(false);
+    const [countdownSeconds, setCountdownSeconds] = useState<number>(5);
+    const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const hasTriggeredAutoNext = useRef<boolean>(false);
+
     // Sync state when URL searchParams change
     useEffect(() => {
         if (urlSeason && !isNaN(Number(urlSeason))) {
@@ -104,8 +120,142 @@ function WatchPageContent() {
         }
     }, []);
 
+    // Helper to calculate Next and Previous episode
+    const getNextEpisode = () => {
+        if (type !== 'tv' || !media) return null;
+        
+        // Next episode in current season
+        if (episodes.length > 0 && selectedEpisode < episodes.length) {
+            const nextEpNum = selectedEpisode + 1;
+            const epDetails = episodes.find(e => e.episode_number === nextEpNum);
+            return {
+                season: selectedSeason,
+                episode: nextEpNum,
+                name: epDetails?.name || `Episode ${nextEpNum}`,
+                isNewSeason: false
+            };
+        }
+        
+        // Check next season
+        if (media.seasons && media.seasons.length > 0) {
+            const nextSeasonObj = media.seasons.find(s => s.season_number === selectedSeason + 1);
+            if (nextSeasonObj && nextSeasonObj.season_number > 0) {
+                return {
+                    season: nextSeasonObj.season_number,
+                    episode: 1,
+                    name: `Season ${nextSeasonObj.season_number} Premiere`,
+                    isNewSeason: true
+                };
+            }
+        }
+        
+        return null;
+    };
+
+    const getPrevEpisode = () => {
+        if (type !== 'tv' || !media) return null;
+        if (selectedEpisode > 1) {
+            return {
+                season: selectedSeason,
+                episode: selectedEpisode - 1
+            };
+        }
+        if (selectedSeason > 1 && media.seasons) {
+            const prevSeasonObj = media.seasons.find(s => s.season_number === selectedSeason - 1);
+            if (prevSeasonObj && prevSeasonObj.season_number > 0) {
+                return {
+                    season: prevSeasonObj.season_number,
+                    episode: prevSeasonObj.episode_count || 1
+                };
+            }
+        }
+        return null;
+    };
+
+    const cancelCountdown = () => {
+        if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+        }
+        setCountdownActive(false);
+    };
+
+    // Switch episode & update URL smoothly
+    const playEpisode = (seasonNumber: number, episodeNumber: number) => {
+        cancelCountdown();
+        hasTriggeredAutoNext.current = false;
+        lastSavedTime.current = 0;
+
+        if (seasonNumber !== selectedSeason) {
+            setSelectedSeason(seasonNumber);
+            setSelectedEpisode(episodeNumber);
+            setStartProgress(0);
+            const newUrl = `/watch/${type}/${idParam}?s=${seasonNumber}&e=${episodeNumber}`;
+            window.history.replaceState(null, '', newUrl);
+        } else {
+            handleSelectEpisode(episodeNumber);
+        }
+    };
+
+    const startAutoPlayCountdown = () => {
+        if (!autoPlayNextRef.current || type !== 'tv') return;
+        const nextEp = getNextEpisode();
+        if (!nextEp) return;
+        if (countdownActive || hasTriggeredAutoNext.current) return;
+
+        hasTriggeredAutoNext.current = true;
+        setCountdownSeconds(5);
+        setCountdownActive(true);
+    };
+
+    const triggerNextEpisodeNow = () => {
+        const nextEp = getNextEpisode();
+        cancelCountdown();
+        if (nextEp) {
+            playEpisode(nextEp.season, nextEp.episode);
+        }
+    };
+
+    // Reset countdown when episode or season changes
+    useEffect(() => {
+        hasTriggeredAutoNext.current = false;
+        cancelCountdown();
+    }, [selectedSeason, selectedEpisode]);
+
+    // Countdown timer ticker
+    useEffect(() => {
+        if (!countdownActive) return;
+
+        countdownTimerRef.current = setInterval(() => {
+            setCountdownSeconds(prev => {
+                if (prev <= 1) {
+                    if (countdownTimerRef.current) {
+                        clearInterval(countdownTimerRef.current);
+                        countdownTimerRef.current = null;
+                    }
+                    setCountdownActive(false);
+                    const nextEp = getNextEpisode();
+                    if (nextEp) {
+                        playEpisode(nextEp.season, nextEp.episode);
+                    }
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => {
+            if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+                countdownTimerRef.current = null;
+            }
+        };
+    }, [countdownActive, selectedSeason, selectedEpisode, episodes, media]);
+
     // Handlers for switching season & episode
     const handleSelectSeason = (seasonNumber: number) => {
+        cancelCountdown();
+        hasTriggeredAutoNext.current = false;
         setSelectedSeason(seasonNumber);
         setSelectedEpisode(1);
         setStartProgress(0);
@@ -115,6 +265,8 @@ function WatchPageContent() {
     };
 
     const handleSelectEpisode = (episodeNumber: number) => {
+        cancelCountdown();
+        hasTriggeredAutoNext.current = false;
         setSelectedEpisode(episodeNumber);
         lastSavedTime.current = 0;
 
@@ -229,7 +381,21 @@ function WatchPageContent() {
 
                 if (!data) return;
 
-                // Support VidLink, Vidrift, and generic HTML5 postMessage formats
+                // Support VidLink, Vidrift, and generic HTML5 postMessage completion events
+                const isEnded = 
+                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'ended' || data.data?.type === 'ended')) ||
+                    data.event === 'ended' ||
+                    data.type === 'ended' ||
+                    data.event === 'player:ended' ||
+                    data.data?.event === 'player:ended';
+
+                if (isEnded) {
+                    if (type === 'tv' && autoPlayNextRef.current && !hasTriggeredAutoNext.current) {
+                        startAutoPlayCountdown();
+                    }
+                }
+
+                // Support timeupdate events
                 const isTimeUpdate = 
                     (data.type === 'PLAYER_EVENT' && (data.data?.event === 'timeupdate' || data.data?.type === 'timeupdate')) ||
                     data.event === 'timeupdate' ||
@@ -241,10 +407,18 @@ function WatchPageContent() {
                     const duration = Number(timeData.duration);
 
                     if (!isNaN(currentTime) && currentTime > 0) {
+                        const totalDuration = !isNaN(duration) && duration > 0 ? duration : 0;
+                        const progressPercent = totalDuration > 0 ? Math.min((currentTime / totalDuration) * 100, 100) : 0;
+
+                        // Episode finished fallback check for embeds that don't emit explicit ended event
+                        if (type === 'tv' && autoPlayNextRef.current && totalDuration > 60 && (currentTime >= totalDuration - 2 || progressPercent >= 98.5)) {
+                            if (!hasTriggeredAutoNext.current && !countdownActive) {
+                                startAutoPlayCountdown();
+                            }
+                        }
+
                         if (Math.abs(currentTime - lastSavedTime.current) > 3) {
                             lastSavedTime.current = currentTime;
-                            const totalDuration = !isNaN(duration) && duration > 0 ? duration : 0;
-                            const progressPercent = totalDuration > 0 ? Math.min((currentTime / totalDuration) * 100, 100) : 0;
 
                             // 1. Save locally
                             saveContinueWatchingItem({
@@ -302,7 +476,7 @@ function WatchPageContent() {
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [user, media, idParam, type, selectedSeason, selectedEpisode]);
+    }, [user, media, idParam, type, selectedSeason, selectedEpisode, countdownActive]);
 
     const tmdbId = media ? String(media.id) : idParam;
     const imdbId = media?.imdbID || undefined;
@@ -354,18 +528,18 @@ function WatchPageContent() {
             {media.backdrop_path && (
                 <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-1000">
                     <div 
-                        className="absolute inset-0 bg-cover bg-center scale-110 opacity-[0.24] filter blur-[100px] saturate-[1.4]"
+                        className="absolute inset-0 bg-cover bg-center scale-110 filter blur-[90px] opacity-25 brightness-50"
                         style={{ backgroundImage: `url(${getImageUrl(media.backdrop_path, 'original')})` }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0b] via-[#0b0b0b]/75 to-[#0b0b0b]" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#0b0b0b]/80 via-[#0b0b0b]/95 to-[#0b0b0b]" />
                 </div>
             )}
 
-            {/* Main Cinema Player Container */}
-            <div className="pt-20 sm:pt-24 px-3 sm:px-6 lg:px-10 max-w-[1700px] mx-auto relative z-10">
+            {/* Main Stage: Theater Mode Cinema Player & Integrated Meta Bar */}
+            <div className="relative z-10 pt-16 sm:pt-20 px-2 sm:px-4 md:px-6 lg:px-8 max-w-[1700px] mx-auto">
                 
                 {/* 1. Large Cinema Video Player */}
-                <div className="w-full aspect-video bg-black/90 backdrop-blur-md relative border border-white/10 rounded-2xl sm:rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden z-10">
+                <div className="w-full aspect-video bg-black/90 backdrop-blur-md relative border border-white/10 rounded-2xl sm:rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden z-10 group">
                     <iframe
                         key={`${selectedSource}-${tmdbId}-${selectedSeason}-${selectedEpisode}-${startProgress > 5 ? startProgress : 0}`}
                         src={embedUrl}
@@ -374,13 +548,78 @@ function WatchPageContent() {
                         referrerPolicy="no-referrer"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     />
+
+                    {/* Netflix-style Floating Next Episode Countdown Overlay */}
+                    {type === 'tv' && countdownActive && getNextEpisode() && (
+                        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-black/90 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] animate-fade-in">
+                            <div className="flex items-start justify-between gap-3 mb-2.5">
+                                <div className="flex items-center gap-3">
+                                    <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
+                                        <span className="text-xs font-black text-accent">{countdownSeconds}</span>
+                                        <svg className="absolute inset-0 w-full h-full -rotate-90">
+                                            <circle
+                                                cx="16"
+                                                cy="16"
+                                                r="13"
+                                                stroke="currentColor"
+                                                strokeWidth="2.5"
+                                                className="text-white/10 fill-none"
+                                            />
+                                            <circle
+                                                cx="16"
+                                                cy="16"
+                                                r="13"
+                                                stroke="currentColor"
+                                                strokeWidth="2.5"
+                                                className="text-accent fill-none transition-all duration-1000"
+                                                strokeDasharray={81.68}
+                                                strokeDashoffset={81.68 * (1 - countdownSeconds / 5)}
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-white/50">
+                                            Up Next in {countdownSeconds}s
+                                        </p>
+                                        <h4 className="text-xs font-bold text-white truncate max-w-[210px]">
+                                            {getNextEpisode()?.isNewSeason 
+                                                ? `Season ${getNextEpisode()?.season} • Episode 1`
+                                                : `S${getNextEpisode()?.season} E${getNextEpisode()?.episode} • ${getNextEpisode()?.name}`}
+                                        </h4>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={cancelCountdown}
+                                    className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                                    title="Cancel Auto-Play"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1">
+                                <button
+                                    onClick={triggerNextEpisodeNow}
+                                    className="flex-1 bg-accent hover:bg-accent-light text-white text-xs font-black uppercase tracking-wider py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shadow-accent/30 hover:scale-[1.02]"
+                                >
+                                    <Play className="w-3.5 h-3.5 fill-white" />
+                                    Play Now
+                                </button>
+                                <button
+                                    onClick={cancelCountdown}
+                                    className="bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider py-2 px-3 rounded-xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* 2. Media Title, Quick Details, Actions & Expandable Server Selector */}
                 <div className="mt-4 sm:mt-6 bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl">
                     
-                    {/* Top Row: Title, Metadata & Watch Together CTA */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 sm:pb-5 border-b border-white/10">
+                    {/* Top Row: Title, Metadata, Episode Navigation & CTAs */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 sm:pb-5 border-b border-white/10">
                         <div className="min-w-0">
                             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black uppercase text-white tracking-tight drop-shadow-md truncate">
                                 {title} {type === 'tv' && `• S${selectedSeason} E${selectedEpisode}`}
@@ -413,11 +652,65 @@ function WatchPageContent() {
                             </div>
                         </div>
 
-                        {/* Watch Together Party CTA */}
-                        <div className="flex items-center gap-3 shrink-0">
+                        {/* Actions Row: Prev/Next Episode + Auto-Play Toggle + Watch Together */}
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+                            {type === 'tv' && (
+                                <>
+                                    {/* Previous Episode */}
+                                    <button
+                                        onClick={() => {
+                                            const prev = getPrevEpisode();
+                                            if (prev) playEpisode(prev.season, prev.episode);
+                                        }}
+                                        disabled={!getPrevEpisode()}
+                                        className="flex items-center gap-1 px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-sm"
+                                        title="Previous Episode"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                        <span className="hidden sm:inline">Prev</span>
+                                    </button>
+
+                                    {/* Next Episode */}
+                                    <button
+                                        onClick={() => {
+                                            const next = getNextEpisode();
+                                            if (next) playEpisode(next.season, next.episode);
+                                        }}
+                                        disabled={!getNextEpisode()}
+                                        className="flex items-center gap-1 px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-sm"
+                                        title="Next Episode"
+                                    >
+                                        <span className="hidden sm:inline">Next</span>
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+
+                                    {/* Auto-Play Next Toggle Switch */}
+                                    <button
+                                        onClick={() => {
+                                            const nextVal = !autoPlayNext;
+                                            setAutoPlayNext(nextVal);
+                                            saveAutoPlayNext(nextVal);
+                                        }}
+                                        className={`flex items-center gap-2 px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border shadow-sm ${
+                                            autoPlayNext
+                                                ? 'bg-accent/15 border-accent text-accent shadow-accent/10'
+                                                : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80'
+                                        }`}
+                                        title="Toggle Auto-Play Next Episode on finish"
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${autoPlayNext ? 'bg-accent animate-pulse' : 'bg-white/30'}`} />
+                                        <span className="hidden sm:inline">Auto-Play</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${autoPlayNext ? 'bg-accent text-white' : 'bg-white/10 text-white/40'}`}>
+                                            {autoPlayNext ? 'ON' : 'OFF'}
+                                        </span>
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Watch Together Party CTA */}
                             <Link
                                 href={`/room/create?type=${type}&id=${roomMediaId}${type === 'tv' ? `&s=${selectedSeason}&e=${selectedEpisode}` : ''}`}
-                                className="w-full sm:w-auto bg-accent hover:bg-accent-light text-white flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 rounded-xl text-xs font-black uppercase tracking-[0.16em] transition-all shadow-lg shadow-accent/25 border border-accent/30 hover:scale-[1.02]"
+                                className="w-full sm:w-auto bg-accent hover:bg-accent-light text-white flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.16em] transition-all shadow-lg shadow-accent/25 border border-accent/30 hover:scale-[1.02]"
                             >
                                 <Users className="w-4 h-4" />
                                 <span>Watch Together</span>
@@ -427,32 +720,28 @@ function WatchPageContent() {
 
                     {/* Server Strip / Selector: "Choose Server" (Expandable & Collapsible) */}
                     <div className="pt-4 sm:pt-5">
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between gap-3 mb-3">
                             <div className="flex items-center gap-2.5">
-                                <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                                    Choose Server
-                                </h3>
-                                {videoSources.find(s => s.id === selectedSource) && (
-                                    <span className="text-[11px] font-bold text-accent bg-accent/15 px-2.5 py-0.5 rounded-full border border-accent/25">
-                                        Current: {videoSources.find(s => s.id === selectedSource)?.name}
-                                    </span>
-                                )}
+                                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                                <span className="text-xs font-black uppercase tracking-[0.2em] text-white/80">Streaming Servers</span>
+                                <span className="text-[11px] font-bold text-accent px-2 py-0.5 rounded-md bg-accent/10 border border-accent/20">
+                                    {videoSources.find(s => s.id === selectedSource)?.name || selectedSource}
+                                </span>
                             </div>
 
-                            {/* Expand / Collapse Button */}
+                            {/* Toggle Expand / Collapse all servers */}
                             <button
-                                onClick={() => setIsServerListExpanded(!isServerListExpanded)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 hover:text-white transition-all border border-white/10"
+                                onClick={() => setIsServerListExpanded(prev => !prev)}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-extrabold uppercase tracking-wider text-white/60 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
                             >
-                                <span>{isServerListExpanded ? 'Collapse' : 'All Servers (10)'}</span>
+                                <span>{isServerListExpanded ? 'Compact View' : 'Show All Servers'}</span>
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isServerListExpanded ? 'rotate-180' : ''}`} />
                             </button>
                         </div>
 
-                        {/* Collapsed view: Horizontal scrolling server bar (MultiMovies style) */}
+                        {/* Collapsed view: Horizontal scrollable server pills */}
                         {!isServerListExpanded ? (
-                            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-1">
+                            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 no-scrollbar scroll-smooth">
                                 {videoSources.map(source => {
                                     const isSelected = selectedSource === source.id;
                                     return (
@@ -553,9 +842,29 @@ function WatchPageContent() {
                                     <span className="w-1.5 h-5 sm:h-6 bg-accent rounded-full"></span>
                                     Seasons & Episodes
                                 </h2>
-                                <p className="text-xs font-medium text-white/50 mt-1">
-                                    Season {selectedSeason} • {episodes.length} Episodes available
-                                </p>
+                                <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                                    <p className="text-xs font-medium text-white/50">
+                                        Season {selectedSeason} • {episodes.length} Episodes available
+                                    </p>
+                                    <button
+                                        onClick={() => {
+                                            const nextVal = !autoPlayNext;
+                                            setAutoPlayNext(nextVal);
+                                            saveAutoPlayNext(nextVal);
+                                        }}
+                                        className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border ${
+                                            autoPlayNext 
+                                                ? 'bg-accent/20 border-accent/40 text-accent' 
+                                                : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70'
+                                        }`}
+                                    >
+                                        <Sparkles className="w-3.5 h-3.5" />
+                                        <span>Auto-Play Next:</span>
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${autoPlayNext ? 'bg-accent text-white' : 'bg-white/10 text-white/40'}`}>
+                                            {autoPlayNext ? 'ON' : 'OFF'}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Season Selector Tabs */}
@@ -582,30 +891,31 @@ function WatchPageContent() {
                         {/* Episode List (Compact Horizontal List on Mobile, Grid on Desktop) */}
                         {episodes.length === 0 ? (
                             <div className="py-12 text-center text-white/40 font-bold uppercase tracking-widest text-xs animate-pulse">
-                                Loading episodes for Season {selectedSeason}...
+                                Loading episodes...
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-2.5 md:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar">
                                 {episodes.map((ep) => {
                                     const isSelected = selectedEpisode === ep.episode_number;
                                     return (
                                         <div
                                             key={ep.id}
                                             onClick={() => handleSelectEpisode(ep.episode_number)}
-                                            className={`group relative cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 border p-2 sm:p-3 flex flex-row md:flex-col items-center md:items-stretch gap-3 ${
+                                            className={`group relative flex md:flex-col gap-3 p-2.5 sm:p-3 rounded-2xl cursor-pointer transition-all border duration-300 ${
                                                 isSelected
-                                                    ? 'bg-accent/15 border-accent shadow-xl shadow-accent/20 ring-1 ring-accent scale-[1.01]'
-                                                    : 'bg-white/[0.02] hover:bg-white/[0.07] border-white/10 hover:border-white/20'
+                                                    ? 'bg-accent/15 border-accent shadow-xl shadow-accent/20 scale-[1.01]'
+                                                    : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.06]'
                                             }`}
                                         >
-                                            {/* Thumbnail on left for mobile, top for desktop */}
-                                            <div className="w-28 sm:w-36 md:w-full aspect-video relative shrink-0 rounded-xl overflow-hidden bg-black/80">
+                                            {/* Episode Thumbnail */}
+                                            <div className="relative w-28 sm:w-32 md:w-full aspect-video rounded-xl overflow-hidden bg-black/50 shrink-0">
                                                 {ep.still_path ? (
                                                     <Image
                                                         src={getImageUrl(ep.still_path, 'w500')}
                                                         alt={ep.name}
                                                         fill
                                                         className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                        sizes="(max-width: 768px) 140px, 280px"
                                                     />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-white/5 text-white/30 font-bold text-[10px]">

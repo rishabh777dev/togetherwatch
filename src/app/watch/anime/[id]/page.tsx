@@ -3,10 +3,17 @@
 import { Suspense } from 'react';
 import Navbar from '@/components/Navbar';
 import { getAnimeDetails } from '@/lib/anilist';
-import { getPreferredServer, savePreferredServer, saveContinueWatchingItem, getContinueWatchingItem } from '@/lib/watchProgress';
-import { ExternalLink, Loader2, Play } from 'lucide-react';
+import { 
+    getPreferredServer, 
+    savePreferredServer, 
+    saveContinueWatchingItem, 
+    getContinueWatchingItem,
+    getAutoPlayNext,
+    saveAutoPlayNext
+} from '@/lib/watchProgress';
+import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Play, Sparkles, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface AnimeDetails {
     id: number;
@@ -53,6 +60,18 @@ function AnimeWatchContent() {
     const [selectedSource, setSelectedSource] = useState('vidrift');
     const [loading, setLoading] = useState(true);
 
+    // Auto-Play Next Episode State
+    const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => getAutoPlayNext());
+    const autoPlayNextRef = useRef<boolean>(autoPlayNext);
+    useEffect(() => {
+        autoPlayNextRef.current = autoPlayNext;
+    }, [autoPlayNext]);
+
+    const [countdownActive, setCountdownActive] = useState<boolean>(false);
+    const [countdownSeconds, setCountdownSeconds] = useState<number>(5);
+    const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const hasTriggeredAutoNext = useRef<boolean>(false);
+
     // Sync episode if URL changes
     useEffect(() => {
         if (urlEp && !isNaN(Number(urlEp))) {
@@ -78,12 +97,128 @@ function AnimeWatchContent() {
         }
     }, []);
 
+    const cancelCountdown = () => {
+        if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+        }
+        setCountdownActive(false);
+    };
+
     const handleEpisodeChange = (epNum: number) => {
+        cancelCountdown();
+        hasTriggeredAutoNext.current = false;
         setCurrentEpisode(epNum);
         if (typeof window !== 'undefined') {
             window.history.replaceState(null, '', `/watch/anime/${animeId}?e=${epNum}`);
         }
     };
+
+    const startAutoPlayCountdown = () => {
+        if (!autoPlayNextRef.current || !anime) return;
+        const total = anime.episodes || 12;
+        if (currentEpisode >= total) return;
+        if (countdownActive || hasTriggeredAutoNext.current) return;
+
+        hasTriggeredAutoNext.current = true;
+        setCountdownSeconds(5);
+        setCountdownActive(true);
+    };
+
+    const triggerNextEpisodeNow = () => {
+        cancelCountdown();
+        const total = anime?.episodes || 12;
+        if (currentEpisode < total) {
+            handleEpisodeChange(currentEpisode + 1);
+        }
+    };
+
+    // Reset countdown on episode change
+    useEffect(() => {
+        hasTriggeredAutoNext.current = false;
+        cancelCountdown();
+    }, [currentEpisode]);
+
+    // Countdown ticker
+    useEffect(() => {
+        if (!countdownActive) return;
+
+        countdownTimerRef.current = setInterval(() => {
+            setCountdownSeconds(prev => {
+                if (prev <= 1) {
+                    if (countdownTimerRef.current) {
+                        clearInterval(countdownTimerRef.current);
+                        countdownTimerRef.current = null;
+                    }
+                    setCountdownActive(false);
+                    const total = anime?.episodes || 12;
+                    if (currentEpisode < total) {
+                        handleEpisodeChange(currentEpisode + 1);
+                    }
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => {
+            if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+                countdownTimerRef.current = null;
+            }
+        };
+    }, [countdownActive, currentEpisode, anime]);
+
+    // Handle postMessage events from iframe for end-of-episode detection
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            try {
+                let data = event.data;
+                if (typeof data === 'string') {
+                    try { data = JSON.parse(data); } catch { return; }
+                }
+                if (!data) return;
+
+                const isEnded = 
+                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'ended' || data.data?.type === 'ended')) ||
+                    data.event === 'ended' ||
+                    data.type === 'ended' ||
+                    data.event === 'player:ended' ||
+                    data.data?.event === 'player:ended';
+
+                if (isEnded) {
+                    if (autoPlayNextRef.current && !hasTriggeredAutoNext.current) {
+                        startAutoPlayCountdown();
+                    }
+                }
+
+                const isTimeUpdate = 
+                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'timeupdate' || data.data?.type === 'timeupdate')) ||
+                    data.event === 'timeupdate' ||
+                    data.type === 'timeupdate';
+
+                if (isTimeUpdate) {
+                    const timeData = (data.type === 'PLAYER_EVENT' && data.data) ? data.data : data;
+                    const currentTime = Number(timeData.position ?? timeData.currentTime ?? timeData.time);
+                    const duration = Number(timeData.duration);
+
+                    if (!isNaN(currentTime) && !isNaN(duration) && duration > 60) {
+                        const progressPercent = (currentTime / duration) * 100;
+                        if (autoPlayNextRef.current && (currentTime >= duration - 2 || progressPercent >= 98.5)) {
+                            if (!hasTriggeredAutoNext.current && !countdownActive) {
+                                startAutoPlayCountdown();
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // Ignore parsing errors
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [countdownActive, anime, currentEpisode]);
 
     useEffect(() => {
         if (!anime) return;
@@ -168,21 +303,46 @@ function AnimeWatchContent() {
             <div className="pt-20 pb-10">
                 <div className="max-w-7xl mx-auto px-4">
                     {/* Anime Info Header */}
-                    <div className="mb-6">
-                        <h1 className="text-3xl font-bold mb-2">
-                            {anime.title.english || anime.title.romaji}
-                        </h1>
-                        <div className="flex flex-wrap gap-3 text-text-secondary">
-                            <span className="px-3 py-1 bg-bg-card rounded-lg text-sm">{anime.format}</span>
-                            <span className="px-3 py-1 bg-bg-card rounded-lg text-sm">{totalEpisodes} Episodes</span>
-                            <span className="px-3 py-1 bg-accent/20 text-accent rounded-lg text-sm font-semibold">
-                                Episode {currentEpisode}
-                            </span>
+                    <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                                {anime.title.english || anime.title.romaji}
+                            </h1>
+                            <div className="flex flex-wrap gap-2.5 text-text-secondary">
+                                <span className="px-3 py-1 bg-bg-card rounded-lg text-xs font-semibold">{anime.format}</span>
+                                <span className="px-3 py-1 bg-bg-card rounded-lg text-xs font-semibold">{totalEpisodes} Episodes</span>
+                                <span className="px-3 py-1 bg-accent/20 text-accent rounded-lg text-xs font-bold">
+                                    Episode {currentEpisode}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Auto-Play Next Toggle Switch in header */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    const nextVal = !autoPlayNext;
+                                    setAutoPlayNext(nextVal);
+                                    saveAutoPlayNext(nextVal);
+                                }}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
+                                    autoPlayNext 
+                                        ? 'bg-accent/15 border-accent text-accent shadow-sm' 
+                                        : 'bg-bg-card border-white/10 text-white/50 hover:text-white'
+                                }`}
+                                title="Toggle Auto-Play Next Episode on finish"
+                            >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Auto-Play Next:</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${autoPlayNext ? 'bg-accent text-white' : 'bg-white/10 text-white/40'}`}>
+                                    {autoPlayNext ? 'ON' : 'OFF'}
+                                </span>
+                            </button>
                         </div>
                     </div>
 
                     {/* Video Player */}
-                    <div className="relative aspect-video bg-black rounded-xl overflow-hidden mb-6 shadow-2xl">
+                    <div className="relative aspect-video bg-black rounded-xl overflow-hidden mb-6 shadow-2xl group">
                         <iframe
                             key={`${selectedSource}-${animeId}-ep-${currentEpisode}`}
                             src={embedUrl}
@@ -190,6 +350,69 @@ function AnimeWatchContent() {
                             allowFullScreen
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         />
+
+                        {/* Netflix-style Floating Next Episode Countdown Overlay */}
+                        {countdownActive && currentEpisode < totalEpisodes && (
+                            <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-black/90 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-2xl animate-fade-in">
+                                <div className="flex items-start justify-between gap-3 mb-2.5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
+                                            <span className="text-xs font-black text-accent">{countdownSeconds}</span>
+                                            <svg className="absolute inset-0 w-full h-full -rotate-90">
+                                                <circle
+                                                    cx="16"
+                                                    cy="16"
+                                                    r="13"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2.5"
+                                                    className="text-white/10 fill-none"
+                                                />
+                                                <circle
+                                                    cx="16"
+                                                    cy="16"
+                                                    r="13"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2.5"
+                                                    className="text-accent fill-none transition-all duration-1000"
+                                                    strokeDasharray={81.68}
+                                                    strokeDashoffset={81.68 * (1 - countdownSeconds / 5)}
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-extrabold uppercase tracking-widest text-white/50">
+                                                Up Next in {countdownSeconds}s
+                                            </p>
+                                            <h4 className="text-xs font-bold text-white truncate max-w-[210px]">
+                                                Episode {currentEpisode + 1}
+                                            </h4>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={cancelCountdown}
+                                        className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                                        title="Cancel Auto-Play"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                    <button
+                                        onClick={triggerNextEpisodeNow}
+                                        className="flex-1 bg-accent hover:bg-accent-light text-white text-xs font-black uppercase tracking-wider py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shadow-accent/30 hover:scale-[1.02]"
+                                    >
+                                        <Play className="w-3.5 h-3.5 fill-white" />
+                                        Play Now
+                                    </button>
+                                    <button
+                                        onClick={cancelCountdown}
+                                        className="bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider py-2 px-3 rounded-xl transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Source Selector */}
@@ -204,10 +427,10 @@ function AnimeWatchContent() {
                                         savePreferredServer(source.id);
                                     }}
                                     className={`
-                                        p-3 rounded-lg transition-all text-left
+                                        p-3 rounded-lg text-left transition-all border
                                         ${selectedSource === source.id
-                                            ? 'bg-accent text-white shadow-lg'
-                                            : 'bg-bg-primary hover:bg-bg-hover'
+                                            ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20'
+                                            : 'bg-bg-primary hover:bg-bg-hover text-text-primary border-white/5'
                                         }
                                     `}
                                 >
@@ -222,20 +445,21 @@ function AnimeWatchContent() {
                     </div>
 
                     {/* Quick Navigation */}
-                    <div className="flex gap-3 mb-6">
+                    <div className="flex flex-wrap items-center gap-3 mb-6">
                         <button
                             onClick={() => handleEpisodeChange(Math.max(1, currentEpisode - 1))}
                             disabled={currentEpisode === 1}
-                            className="px-6 py-3 bg-bg-card hover:bg-bg-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+                            className="flex items-center gap-1.5 px-5 py-2.5 bg-bg-card hover:bg-bg-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-xs uppercase tracking-wider transition-colors border border-white/5"
                         >
-                            ← Previous
+                            <ChevronLeft className="w-4 h-4" />
+                            Previous
                         </button>
 
                         <a
                             href={`https://anilist.co/anime/${animeId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-6 py-3 bg-bg-card hover:bg-bg-hover rounded-lg font-semibold transition-colors flex items-center gap-2"
+                            className="px-5 py-2.5 bg-bg-card hover:bg-bg-hover rounded-xl font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-2 border border-white/5 text-text-secondary hover:text-white"
                         >
                             <ExternalLink className="w-4 h-4" />
                             AniList
@@ -244,9 +468,10 @@ function AnimeWatchContent() {
                         <button
                             onClick={() => handleEpisodeChange(Math.min(totalEpisodes, currentEpisode + 1))}
                             disabled={currentEpisode === totalEpisodes}
-                            className="px-6 py-3 bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors ml-auto"
+                            className="flex items-center gap-1.5 px-5 py-2.5 bg-accent hover:bg-accent-light disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-colors ml-auto shadow-md shadow-accent/20"
                         >
-                            Next →
+                            Next
+                            <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
 

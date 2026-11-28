@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -69,22 +69,6 @@ function DetailsContent() {
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [loadingEpisodes, setLoadingEpisodes] = useState(false);
-
-    // Interactive Liquid Glass Spotlight on floating info slate
-    const panelRef = useRef<HTMLDivElement>(null);
-    const [spotlightPos, setSpotlightPos] = useState({ x: 50, y: 50, active: false });
-
-    const handlePanelMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!panelRef.current) return;
-        const rect = panelRef.current.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        setSpotlightPos({ x, y, active: true });
-    };
-
-    const handlePanelMouseLeave = () => {
-        setSpotlightPos(prev => ({ ...prev, active: false }));
-    };
 
     // Fetch primary media details
     useEffect(() => {
@@ -434,22 +418,7 @@ function DetailsContent() {
 
                         {/* RIGHT COLUMN: PURE LIQUID GLASS INFO SLATE (Matches user screenshot) */}
                         <div className="lg:col-span-4 w-full">
-                            <div 
-                                ref={panelRef}
-                                onMouseMove={handlePanelMouseMove}
-                                onMouseLeave={handlePanelMouseLeave}
-                                className="liquid-glass-panel rounded-[2rem] p-6 sm:p-7 overflow-hidden transition-all duration-300"
-                            >
-                                {/* Dynamic Interactive Specular Spotlight tracking mouse */}
-                                {spotlightPos.active && (
-                                    <div 
-                                        className="absolute inset-0 pointer-events-none transition-opacity duration-300"
-                                        style={{
-                                            background: `radial-gradient(350px circle at ${spotlightPos.x}% ${spotlightPos.y}%, rgba(255, 255, 255, 0.18), transparent 70%)`
-                                        }}
-                                    />
-                                )}
-
+                            <div className="liquid-glass-panel rounded-[2rem] p-6 sm:p-7 overflow-hidden">
                                 {/* Subtle Prismatic Rim Indicator */}
                                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
                                     <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-cyan-400 to-accent animate-pulse" />

@@ -11,6 +11,8 @@ export interface Movie {
     backdrop_path: string | null;
     overview: string;
     vote_average: number;
+    vote_count?: number;
+    popularity?: number;
     release_date?: string;
     first_air_date?: string;
     media_type?: 'movie' | 'tv';
@@ -224,3 +226,48 @@ export async function discoverMedia(type: 'movie' | 'tv', params: Record<string,
     const data = await fetchTMDB(`/discover/${type}`, params);
     return (data?.results || []).map((m: any) => ({ ...m, media_type: type }));
 }
+
+export interface PersonDetails {
+    id: number;
+    name: string;
+    biography: string;
+    birthday: string | null;
+    deathday: string | null;
+    place_of_birth: string | null;
+    profile_path: string | null;
+    known_for_department: string;
+    popularity: number;
+    also_known_as?: string[];
+    imdb_id?: string;
+}
+
+export interface PersonCredit extends Movie {
+    character?: string;
+    job?: string;
+    department?: string;
+}
+
+export interface PersonCreditsResponse {
+    cast: PersonCredit[];
+    crew: PersonCredit[];
+}
+
+export async function getPersonDetails(personId: number | string): Promise<PersonDetails | null> {
+    return fetchTMDB(`/person/${personId}`);
+}
+
+export async function getPersonCredits(personId: number | string): Promise<PersonCreditsResponse | null> {
+    const data = await fetchTMDB(`/person/${personId}/combined_credits`);
+    if (!data) return null;
+    return {
+        cast: (data.cast || []).map((item: any) => ({
+            ...item,
+            media_type: item.media_type || (item.title ? 'movie' : 'tv')
+        })),
+        crew: (data.crew || []).map((item: any) => ({
+            ...item,
+            media_type: item.media_type || (item.title ? 'movie' : 'tv')
+        }))
+    };
+}
+

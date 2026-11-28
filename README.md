@@ -108,6 +108,11 @@ Supabase Realtime-powered room synchronization, presence indicators, host playhe
 * **AniList API Integration**: Direct access to top anime rankings, episode counts, Romanji/English titles, and synopsis previews.
 * **Anime-Optimized Streams**: Automatically pairs anime titles with VidRift and AutoEmbed HLS sources.
 
+### 🌟 8. Interactive Actor Filmography & Discovery
+* **One-Click Actor Filmography**: Click any actor profile card on any watch page to open their complete career profile.
+* **Smart Category Filters & Sorting**: Instantly filter between All titles, Feature Films, and TV Series, with sorting by Popularity, Release Date, or TMDB Rating.
+* **Rich Biographies & Direct Playback**: Read detailed actor biographies, birthdays, and character roles with instant 1-click watch navigation.
+
 ---
 
 ## 🛠️ Tech Stack & Architecture

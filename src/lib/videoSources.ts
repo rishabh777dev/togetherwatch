@@ -15,7 +15,8 @@ export interface VideoSource {
         tmdbId: string,
         imdbId?: string,
         season?: number,
-        episode?: number
+        episode?: number,
+        autoPlay?: boolean
     ) => string;
 }
 
@@ -28,10 +29,11 @@ export const videoSources: VideoSource[] = [
         description: 'Premium auto-syncing player with high speed streams',
         features: ['Auto-Sync', 'HD', 'Fast'],
         icon: '⚡',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
+            const ap = autoPlay ? 'true' : 'false';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=E50914&autoplay=false`
-                : `https://vidlink.pro/movie/${tmdbId}?primaryColor=E50914&autoplay=false`;
+                ? `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=E50914&autoplay=${ap}&nextbutton=true`
+                : `https://vidlink.pro/movie/${tmdbId}?primaryColor=E50914&autoplay=${ap}`;
         }
     },
     {
@@ -41,10 +43,11 @@ export const videoSources: VideoSource[] = [
         features: ['Anime/HD', 'Subtitles', 'HLS'],
         icon: '🌊',
         isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
+            const ap = autoPlay ? '?autoplay=1' : '?autoplay=0';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://embed.vidrift.net/embed/tv/${tmdbId}/${season}/${episode}`
-                : `https://embed.vidrift.net/embed/movie/${tmdbId}`;
+                ? `https://embed.vidrift.net/embed/tv/${tmdbId}/${season}/${episode}${ap}`
+                : `https://embed.vidrift.net/embed/movie/${tmdbId}${ap}`;
         }
     },
     {
@@ -53,10 +56,11 @@ export const videoSources: VideoSource[] = [
         description: 'Multi-Audio cloud player hosted on high-speed CDN',
         features: ['Multi-Audio', 'Cloudflare', 'HD'],
         icon: '🎧',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
+            const ap = autoPlay ? '?autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidout.pages.dev/tv/${tmdbId}/${season}/${episode}`
-                : `https://vidout.pages.dev/movie/${imdbId || tmdbId}`;
+                ? `https://vidout.pages.dev/tv/${tmdbId}/${season}/${episode}${ap}`
+                : `https://vidout.pages.dev/movie/${imdbId || tmdbId}${ap}`;
         }
     },
     {
@@ -66,10 +70,11 @@ export const videoSources: VideoSource[] = [
         features: ['Anime/HD', 'Subtitles', 'Fast'],
         icon: '🌸',
         isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
+            const ap = autoPlay ? '?autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}`
-                : `https://autoembed.co/movie/tmdb/${tmdbId}`;
+                ? `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}${ap}`
+                : `https://autoembed.co/movie/tmdb/${tmdbId}${ap}`;
         }
     },
     {
@@ -79,10 +84,11 @@ export const videoSources: VideoSource[] = [
         features: ['Anime/HD', 'Clean', 'Fast'],
         icon: '📺',
         isAnime: true,
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
+            const ap = autoPlay ? '&autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://www.2embed.skin/embedtv/${tmdbId}&s=${season}&e=${episode}`
-                : `https://www.2embed.skin/embed/${tmdbId}`;
+                ? `https://www.2embed.skin/embedtv/${tmdbId}&s=${season}&e=${episode}${ap}`
+                : `https://www.2embed.skin/embed/${tmdbId}${autoPlay ? '?autoplay=1' : ''}`;
         }
     },
     {
@@ -91,10 +97,11 @@ export const videoSources: VideoSource[] = [
         description: 'Clean, lightweight player with instant bufferless playback',
         features: ['Ultra-Fast', 'HD', 'Clean'],
         icon: '⚡',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
+            const ap = autoPlay ? '?autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidbolt.xyz/tv/${tmdbId}/${season}/${episode}`
-                : `https://vidbolt.xyz/movie/${tmdbId}`;
+                ? `https://vidbolt.xyz/tv/${tmdbId}/${season}/${episode}${ap}`
+                : `https://vidbolt.xyz/movie/${tmdbId}${ap}`;
         }
     },
     {
@@ -103,10 +110,11 @@ export const videoSources: VideoSource[] = [
         description: 'Stable player engine with multiple fallback mirrors',
         features: ['Multi-mirrors', 'HD', 'Subs'],
         icon: '🎬',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
+            const ap = autoPlay ? '?autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidly.pro/tv/${tmdbId}/${season}/${episode}`
-                : `https://vidly.pro/movie/${tmdbId}`;
+                ? `https://vidly.pro/tv/${tmdbId}/${season}/${episode}${ap}`
+                : `https://vidly.pro/movie/${tmdbId}${ap}`;
         }
     },
     {
@@ -139,11 +147,12 @@ export const videoSources: VideoSource[] = [
         description: 'Active, unblocked VidSrc high-speed mirror',
         features: ['VidSrc Mirror', 'HD', 'Fast'],
         icon: '🚀',
-        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode) => {
+        getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
             const idParam = imdbId || tmdbId;
+            const ap = autoPlay ? '?autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
-                ? `https://vidsrc.pm/embed/tv/${idParam}/${season}/${episode}`
-                : `https://vidsrc.pm/embed/movie/${idParam}`;
+                ? `https://vidsrc.pm/embed/tv/${idParam}/${season}/${episode}${ap}`
+                : `https://vidsrc.pm/embed/movie/${idParam}${ap}`;
         }
     }
 ];
@@ -170,8 +179,9 @@ export function getEmbedUrl(
     tmdbId: string | number,
     imdbId?: string,
     season?: number,
-    episode?: number
+    episode?: number,
+    autoPlay: boolean = true
 ): string {
     const source = getSourceById(sourceId) || getDefaultSource();
-    return source.getEmbedUrl(mediaType, String(tmdbId), imdbId, season, episode);
+    return source.getEmbedUrl(mediaType, String(tmdbId), imdbId, season, episode, autoPlay);
 }

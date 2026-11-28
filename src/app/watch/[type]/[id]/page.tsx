@@ -18,9 +18,60 @@ import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Clock, Play, SkipForw
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/lib/supabase';
+
+/**
+ * Universal parser for cross-origin player events (VidLink, VidRift, HTML5, Video.js, etc.)
+ */
+function parsePlaybackEvent(eventData: any) {
+    let data = eventData;
+    if (typeof data === 'string') {
+        try { 
+            data = JSON.parse(data); 
+        } catch { 
+            const str = String(data).trim().toLowerCase();
+            if (str === 'ended' || str === 'vidrift:ended' || str === 'player:ended') {
+                return { isEnded: true, currentTime: null, duration: null };
+            }
+            return null; 
+        }
+    }
+    if (!data || typeof data !== 'object') return null;
+
+    // Detect completion events across multiple providers
+    const typeStr = String(data.type || data.event || data.action || data.status || '').toLowerCase();
+    const subEvent = String(data.data?.event || data.data?.type || '').toLowerCase();
+
+    const isEnded = 
+        typeStr === 'ended' ||
+        typeStr === 'player:ended' ||
+        typeStr === 'vidrift:ended' ||
+        typeStr.endsWith(':ended') ||
+        typeStr.includes('playbackended') ||
+        subEvent === 'ended' ||
+        subEvent === 'player:ended' ||
+        subEvent.endsWith(':ended') ||
+        subEvent.includes('playbackended') ||
+        data.ended === true ||
+        data.data?.ended === true;
+
+    // Extract time data (supports VidLink, VidRift, and generic players)
+    const payload = (data.type === 'PLAYER_EVENT' && data.data) ? data.data : data;
+    const currentTime = Number(
+        payload.currentTime ?? payload.position ?? payload.time ?? payload.current_time ?? payload.seconds
+    );
+    const duration = Number(
+        payload.duration ?? payload.totalTime ?? payload.total_time ?? payload.length
+    );
+
+    return {
+        isEnded,
+        currentTime: !isNaN(currentTime) && currentTime > 0 ? currentTime : null,
+        duration: !isNaN(duration) && duration > 0 ? duration : null
+    };
+}
 
 function WatchPageContent() {
     const params = useParams();
@@ -74,7 +125,7 @@ function WatchPageContent() {
     const lastSavedTime = useRef<number>(0);
     const { user } = useAuthStore();
 
-    // Auto-Play Next Episode State
+    // Auto-Play Next Episode State & Refs
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
         return getAutoPlayNext();
     });
@@ -85,8 +136,7 @@ function WatchPageContent() {
 
     const [countdownActive, setCountdownActive] = useState<boolean>(false);
     const [countdownSeconds, setCountdownSeconds] = useState<number>(5);
-    const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const hasTriggeredAutoNext = useRef<boolean>(false);
+    const lastHandledEpisodeKey = useRef<string>('');
 
     // Sync state when URL searchParams change
     useEffect(() => {
@@ -121,22 +171,34 @@ function WatchPageContent() {
     }, []);
 
     // Helper to calculate Next and Previous episode
-    const getNextEpisode = () => {
+    const getNextEpisode = useCallback(() => {
         if (type !== 'tv' || !media) return null;
         
-        // Next episode in current season
-        if (episodes.length > 0 && selectedEpisode < episodes.length) {
-            const nextEpNum = selectedEpisode + 1;
-            const epDetails = episodes.find(e => e.episode_number === nextEpNum);
+        // 1. Check if next episode exists in current episodes list
+        const nextEpInList = episodes.find(e => e.episode_number === selectedEpisode + 1);
+        if (nextEpInList) {
             return {
                 season: selectedSeason,
-                episode: nextEpNum,
-                name: epDetails?.name || `Episode ${nextEpNum}`,
+                episode: nextEpInList.episode_number,
+                name: nextEpInList.name || `Episode ${nextEpInList.episode_number}`,
                 isNewSeason: false
             };
         }
-        
-        // Check next season
+
+        // 2. Fallback: Check current season's episode count from TMDB metadata
+        const currentSeasonObj = media.seasons?.find(s => s.season_number === selectedSeason);
+        const totalEpsInSeason = currentSeasonObj?.episode_count || (episodes.length > 0 ? Math.max(...episodes.map(e => e.episode_number), episodes.length) : 0);
+
+        if (totalEpsInSeason > 0 && selectedEpisode < totalEpsInSeason) {
+            return {
+                season: selectedSeason,
+                episode: selectedEpisode + 1,
+                name: `Episode ${selectedEpisode + 1}`,
+                isNewSeason: false
+            };
+        }
+
+        // 3. Season rollover: Check if next season exists
         if (media.seasons && media.seasons.length > 0) {
             const nextSeasonObj = media.seasons.find(s => s.season_number === selectedSeason + 1);
             if (nextSeasonObj && nextSeasonObj.season_number > 0) {
@@ -150,9 +212,9 @@ function WatchPageContent() {
         }
         
         return null;
-    };
+    }, [type, media, episodes, selectedSeason, selectedEpisode]);
 
-    const getPrevEpisode = () => {
+    const getPrevEpisode = useCallback(() => {
         if (type !== 'tv' || !media) return null;
         if (selectedEpisode > 1) {
             return {
@@ -170,20 +232,15 @@ function WatchPageContent() {
             }
         }
         return null;
-    };
+    }, [type, media, selectedSeason, selectedEpisode]);
 
-    const cancelCountdown = () => {
-        if (countdownTimerRef.current) {
-            clearInterval(countdownTimerRef.current);
-            countdownTimerRef.current = null;
-        }
+    const cancelCountdown = useCallback(() => {
         setCountdownActive(false);
-    };
+    }, []);
 
     // Switch episode & update URL smoothly
-    const playEpisode = (seasonNumber: number, episodeNumber: number) => {
+    const playEpisode = useCallback((seasonNumber: number, episodeNumber: number) => {
         cancelCountdown();
-        hasTriggeredAutoNext.current = false;
         lastSavedTime.current = 0;
 
         if (seasonNumber !== selectedSeason) {
@@ -193,69 +250,64 @@ function WatchPageContent() {
             const newUrl = `/watch/${type}/${idParam}?s=${seasonNumber}&e=${episodeNumber}`;
             window.history.replaceState(null, '', newUrl);
         } else {
-            handleSelectEpisode(episodeNumber);
+            setSelectedEpisode(episodeNumber);
+            const canonicalId = String(media?.id || idParam);
+            const saved = getContinueWatchingItem(canonicalId, type, media?.imdbID);
+            if (saved && saved.season === selectedSeason && saved.episode === episodeNumber && saved.timestamp > 5) {
+                setStartProgress(Math.floor(saved.timestamp));
+            } else {
+                setStartProgress(0);
+            }
+            const newUrl = `/watch/${type}/${idParam}?s=${selectedSeason}&e=${episodeNumber}`;
+            window.history.replaceState(null, '', newUrl);
         }
-    };
+    }, [cancelCountdown, selectedSeason, type, idParam, media]);
 
-    const startAutoPlayCountdown = () => {
+    const startAutoPlayCountdown = useCallback(() => {
         if (!autoPlayNextRef.current || type !== 'tv') return;
+        const currentEpKey = `${selectedSeason}:${selectedEpisode}`;
+        if (lastHandledEpisodeKey.current === currentEpKey) return; // Prevent duplicate trigger
+
         const nextEp = getNextEpisode();
         if (!nextEp) return;
-        if (countdownActive || hasTriggeredAutoNext.current) return;
+        if (countdownActive) return;
 
-        hasTriggeredAutoNext.current = true;
+        lastHandledEpisodeKey.current = currentEpKey;
         setCountdownSeconds(5);
         setCountdownActive(true);
-    };
+    }, [type, selectedSeason, selectedEpisode, getNextEpisode, countdownActive]);
 
-    const triggerNextEpisodeNow = () => {
+    const triggerNextEpisodeNow = useCallback(() => {
         const nextEp = getNextEpisode();
         cancelCountdown();
         if (nextEp) {
             playEpisode(nextEp.season, nextEp.episode);
         }
-    };
+    }, [getNextEpisode, cancelCountdown, playEpisode]);
 
-    // Reset countdown when episode or season changes
-    useEffect(() => {
-        hasTriggeredAutoNext.current = false;
-        cancelCountdown();
-    }, [selectedSeason, selectedEpisode]);
-
-    // Countdown timer ticker
+    // Clean React countdown timer
     useEffect(() => {
         if (!countdownActive) return;
 
-        countdownTimerRef.current = setInterval(() => {
-            setCountdownSeconds(prev => {
-                if (prev <= 1) {
-                    if (countdownTimerRef.current) {
-                        clearInterval(countdownTimerRef.current);
-                        countdownTimerRef.current = null;
-                    }
-                    setCountdownActive(false);
-                    const nextEp = getNextEpisode();
-                    if (nextEp) {
-                        playEpisode(nextEp.season, nextEp.episode);
-                    }
-                    return 0;
-                }
-                return prev - 1;
-            });
+        if (countdownSeconds <= 0) {
+            setCountdownActive(false);
+            const nextEp = getNextEpisode();
+            if (nextEp) {
+                playEpisode(nextEp.season, nextEp.episode);
+            }
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setCountdownSeconds(prev => prev - 1);
         }, 1000);
 
-        return () => {
-            if (countdownTimerRef.current) {
-                clearInterval(countdownTimerRef.current);
-                countdownTimerRef.current = null;
-            }
-        };
-    }, [countdownActive, selectedSeason, selectedEpisode, episodes, media]);
+        return () => clearTimeout(timer);
+    }, [countdownActive, countdownSeconds, getNextEpisode, playEpisode]);
 
     // Handlers for switching season & episode
     const handleSelectSeason = (seasonNumber: number) => {
         cancelCountdown();
-        hasTriggeredAutoNext.current = false;
         setSelectedSeason(seasonNumber);
         setSelectedEpisode(1);
         setStartProgress(0);
@@ -266,7 +318,6 @@ function WatchPageContent() {
 
     const handleSelectEpisode = (episodeNumber: number) => {
         cancelCountdown();
-        hasTriggeredAutoNext.current = false;
         setSelectedEpisode(episodeNumber);
         lastSavedTime.current = 0;
 
@@ -374,97 +425,74 @@ function WatchPageContent() {
 
         const handleMessage = async (event: MessageEvent) => {
             try {
-                let data = event.data;
-                if (typeof data === 'string') {
-                    try { data = JSON.parse(data); } catch { return; }
-                }
+                const parsed = parsePlaybackEvent(event.data);
+                if (!parsed) return;
 
-                if (!data) return;
-
-                // Support VidLink, Vidrift, and generic HTML5 postMessage completion events
-                const isEnded = 
-                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'ended' || data.data?.type === 'ended')) ||
-                    data.event === 'ended' ||
-                    data.type === 'ended' ||
-                    data.event === 'player:ended' ||
-                    data.data?.event === 'player:ended';
-
-                if (isEnded) {
-                    if (type === 'tv' && autoPlayNextRef.current && !hasTriggeredAutoNext.current) {
+                // 1. Completion event detection (VidLink, VidRift, HTML5)
+                if (parsed.isEnded) {
+                    if (type === 'tv' && autoPlayNextRef.current) {
                         startAutoPlayCountdown();
                     }
                 }
 
-                // Support timeupdate events
-                const isTimeUpdate = 
-                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'timeupdate' || data.data?.type === 'timeupdate')) ||
-                    data.event === 'timeupdate' ||
-                    data.type === 'timeupdate';
+                // 2. TimeUpdate / Progress tracking
+                if (parsed.currentTime !== null) {
+                    const currentTime = parsed.currentTime;
+                    const duration = parsed.duration ?? 0;
+                    const progressPercent = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
 
-                if (isTimeUpdate) {
-                    const timeData = (data.type === 'PLAYER_EVENT' && data.data) ? data.data : data;
-                    const currentTime = Number(timeData.position ?? timeData.currentTime ?? timeData.time);
-                    const duration = Number(timeData.duration);
+                    // Fallback completion trigger when video reaches end (within 4s or >= 98% on videos > 60s)
+                    if (type === 'tv' && autoPlayNextRef.current && duration > 60 && (currentTime >= duration - 4 || progressPercent >= 98)) {
+                        startAutoPlayCountdown();
+                    }
 
-                    if (!isNaN(currentTime) && currentTime > 0) {
-                        const totalDuration = !isNaN(duration) && duration > 0 ? duration : 0;
-                        const progressPercent = totalDuration > 0 ? Math.min((currentTime / totalDuration) * 100, 100) : 0;
+                    if (Math.abs(currentTime - lastSavedTime.current) > 3) {
+                        lastSavedTime.current = currentTime;
 
-                        // Episode finished fallback check for embeds that don't emit explicit ended event
-                        if (type === 'tv' && autoPlayNextRef.current && totalDuration > 60 && (currentTime >= totalDuration - 2 || progressPercent >= 98.5)) {
-                            if (!hasTriggeredAutoNext.current && !countdownActive) {
-                                startAutoPlayCountdown();
-                            }
-                        }
+                        // Save locally
+                        saveContinueWatchingItem({
+                            id: `${type}:${canonicalId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
+                            media_id: canonicalId,
+                            media_type: type,
+                            title: media.title || media.name || 'Untitled',
+                            poster_path: media.poster_path,
+                            backdrop_path: media.backdrop_path,
+                            season: selectedSeason || 1,
+                            episode: selectedEpisode || 1,
+                            progress: progressPercent,
+                            timestamp: Math.floor(currentTime),
+                            duration: Math.floor(duration),
+                            updated_at: new Date().toISOString()
+                        }, imdbId);
 
-                        if (Math.abs(currentTime - lastSavedTime.current) > 3) {
-                            lastSavedTime.current = currentTime;
-
-                            // 1. Save locally
-                            saveContinueWatchingItem({
-                                id: `${type}:${canonicalId}${type === 'tv' ? `:s${selectedSeason}:e${selectedEpisode}` : ''}`,
+                        // Also save to Supabase if user is logged in
+                        if (user) {
+                            const payload = {
+                                user_id: user.id,
                                 media_id: canonicalId,
                                 media_type: type,
-                                title: media.title || media.name || 'Untitled',
-                                poster_path: media.poster_path,
-                                backdrop_path: media.backdrop_path,
-                                season: selectedSeason || 1,
-                                episode: selectedEpisode || 1,
+                                season: selectedSeason || 0,
+                                episode: selectedEpisode || 0,
                                 progress: progressPercent,
                                 timestamp: Math.floor(currentTime),
-                                duration: Math.floor(totalDuration),
+                                duration: Math.floor(duration),
                                 updated_at: new Date().toISOString()
-                            }, imdbId);
+                            };
 
-                            // 2. Also save to Supabase if user is logged in
-                            if (user) {
-                                const payload = {
-                                    user_id: user.id,
-                                    media_id: canonicalId,
-                                    media_type: type,
-                                    season: selectedSeason || 0,
-                                    episode: selectedEpisode || 0,
-                                    progress: progressPercent,
-                                    timestamp: Math.floor(currentTime),
-                                    duration: Math.floor(totalDuration),
-                                    updated_at: new Date().toISOString()
-                                };
+                            const { data: existing } = await supabase
+                                .from('watch_progress')
+                                .select('id')
+                                .eq('user_id', user.id)
+                                .eq('media_id', canonicalId)
+                                .eq('media_type', type)
+                                .eq('season', selectedSeason || 0)
+                                .eq('episode', selectedEpisode || 0)
+                                .single();
 
-                                const { data: existing } = await supabase
-                                    .from('watch_progress')
-                                    .select('id')
-                                    .eq('user_id', user.id)
-                                    .eq('media_id', canonicalId)
-                                    .eq('media_type', type)
-                                    .eq('season', selectedSeason || 0)
-                                    .eq('episode', selectedEpisode || 0)
-                                    .single();
-
-                                if (existing) {
-                                    await supabase.from('watch_progress').update(payload).eq('id', existing.id);
-                                } else {
-                                    await supabase.from('watch_progress').insert(payload);
-                                }
+                            if (existing) {
+                                await supabase.from('watch_progress').update(payload).eq('id', existing.id);
+                            } else {
+                                await supabase.from('watch_progress').insert(payload);
                             }
                         }
                     }
@@ -476,14 +504,16 @@ function WatchPageContent() {
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [user, media, idParam, type, selectedSeason, selectedEpisode, countdownActive]);
+    }, [user, media, idParam, type, selectedSeason, selectedEpisode, startAutoPlayCountdown]);
 
     const tmdbId = media ? String(media.id) : idParam;
     const imdbId = media?.imdbID || undefined;
     const roomMediaId = tmdbId;
+
+    // Build embed URL, passing autoPlayNext so player automatically plays on episode advance
     let baseEmbedUrl = type === 'movie'
-        ? getEmbedUrl(selectedSource, 'movie', tmdbId, imdbId)
-        : getEmbedUrl(selectedSource, 'tv', tmdbId, imdbId, selectedSeason, selectedEpisode);
+        ? getEmbedUrl(selectedSource, 'movie', tmdbId, imdbId, undefined, undefined, false)
+        : getEmbedUrl(selectedSource, 'tv', tmdbId, imdbId, selectedSeason, selectedEpisode, autoPlayNext);
 
     if (startProgress > 5) {
         const sep = baseEmbedUrl.includes('?') ? '&' : '?';
@@ -551,7 +581,7 @@ function WatchPageContent() {
 
                     {/* Netflix-style Floating Next Episode Countdown Overlay */}
                     {type === 'tv' && countdownActive && getNextEpisode() && (
-                        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-black/90 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] animate-fade-in">
+                        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-black/95 backdrop-blur-2xl border border-white/20 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] animate-fade-in pointer-events-auto">
                             <div className="flex items-start justify-between gap-3 mb-2.5">
                                 <div className="flex items-center gap-3">
                                     <div className="relative w-8 h-8 flex items-center justify-center shrink-0">

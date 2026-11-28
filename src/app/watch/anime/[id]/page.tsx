@@ -13,7 +13,7 @@ import {
 } from '@/lib/watchProgress';
 import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Play, Sparkles, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface AnimeDetails {
     id: number;
@@ -38,6 +38,55 @@ function sanitizeHtml(html: string): string {
         .replace(/javascript:/gi, '');
 }
 
+/**
+ * Universal parser for cross-origin player events (VidLink, VidRift, HTML5, Video.js, etc.)
+ */
+function parsePlaybackEvent(eventData: any) {
+    let data = eventData;
+    if (typeof data === 'string') {
+        try { 
+            data = JSON.parse(data); 
+        } catch { 
+            const str = String(data).trim().toLowerCase();
+            if (str === 'ended' || str === 'vidrift:ended' || str === 'player:ended') {
+                return { isEnded: true, currentTime: null, duration: null };
+            }
+            return null; 
+        }
+    }
+    if (!data || typeof data !== 'object') return null;
+
+    const typeStr = String(data.type || data.event || data.action || data.status || '').toLowerCase();
+    const subEvent = String(data.data?.event || data.data?.type || '').toLowerCase();
+
+    const isEnded = 
+        typeStr === 'ended' ||
+        typeStr === 'player:ended' ||
+        typeStr === 'vidrift:ended' ||
+        typeStr.endsWith(':ended') ||
+        typeStr.includes('playbackended') ||
+        subEvent === 'ended' ||
+        subEvent === 'player:ended' ||
+        subEvent.endsWith(':ended') ||
+        subEvent.includes('playbackended') ||
+        data.ended === true ||
+        data.data?.ended === true;
+
+    const payload = (data.type === 'PLAYER_EVENT' && data.data) ? data.data : data;
+    const currentTime = Number(
+        payload.currentTime ?? payload.position ?? payload.time ?? payload.current_time ?? payload.seconds
+    );
+    const duration = Number(
+        payload.duration ?? payload.totalTime ?? payload.total_time ?? payload.length
+    );
+
+    return {
+        isEnded,
+        currentTime: !isNaN(currentTime) && currentTime > 0 ? currentTime : null,
+        duration: !isNaN(duration) && duration > 0 ? duration : null
+    };
+}
+
 function AnimeWatchContent() {
     const params = useParams();
     const searchParams = useSearchParams();
@@ -60,7 +109,7 @@ function AnimeWatchContent() {
     const [selectedSource, setSelectedSource] = useState('vidrift');
     const [loading, setLoading] = useState(true);
 
-    // Auto-Play Next Episode State
+    // Auto-Play Next Episode State & Refs
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => getAutoPlayNext());
     const autoPlayNextRef = useRef<boolean>(autoPlayNext);
     useEffect(() => {
@@ -69,8 +118,7 @@ function AnimeWatchContent() {
 
     const [countdownActive, setCountdownActive] = useState<boolean>(false);
     const [countdownSeconds, setCountdownSeconds] = useState<number>(5);
-    const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const hasTriggeredAutoNext = useRef<boolean>(false);
+    const lastHandledEpisodeKey = useRef<string>('');
 
     // Sync episode if URL changes
     useEffect(() => {
@@ -97,117 +145,81 @@ function AnimeWatchContent() {
         }
     }, []);
 
-    const cancelCountdown = () => {
-        if (countdownTimerRef.current) {
-            clearInterval(countdownTimerRef.current);
-            countdownTimerRef.current = null;
-        }
+    const cancelCountdown = useCallback(() => {
         setCountdownActive(false);
-    };
+    }, []);
 
-    const handleEpisodeChange = (epNum: number) => {
+    const handleEpisodeChange = useCallback((epNum: number) => {
         cancelCountdown();
-        hasTriggeredAutoNext.current = false;
         setCurrentEpisode(epNum);
         if (typeof window !== 'undefined') {
             window.history.replaceState(null, '', `/watch/anime/${animeId}?e=${epNum}`);
         }
-    };
+    }, [cancelCountdown, animeId]);
 
-    const startAutoPlayCountdown = () => {
+    const startAutoPlayCountdown = useCallback(() => {
         if (!autoPlayNextRef.current || !anime) return;
         const total = anime.episodes || 12;
         if (currentEpisode >= total) return;
-        if (countdownActive || hasTriggeredAutoNext.current) return;
 
-        hasTriggeredAutoNext.current = true;
+        const epKey = `ep:${currentEpisode}`;
+        if (lastHandledEpisodeKey.current === epKey) return; // Prevent duplicate trigger
+        if (countdownActive) return;
+
+        lastHandledEpisodeKey.current = epKey;
         setCountdownSeconds(5);
         setCountdownActive(true);
-    };
+    }, [anime, currentEpisode, countdownActive]);
 
-    const triggerNextEpisodeNow = () => {
+    const triggerNextEpisodeNow = useCallback(() => {
         cancelCountdown();
         const total = anime?.episodes || 12;
         if (currentEpisode < total) {
             handleEpisodeChange(currentEpisode + 1);
         }
-    };
+    }, [cancelCountdown, anime, currentEpisode, handleEpisodeChange]);
 
-    // Reset countdown on episode change
-    useEffect(() => {
-        hasTriggeredAutoNext.current = false;
-        cancelCountdown();
-    }, [currentEpisode]);
-
-    // Countdown ticker
+    // Clean React countdown ticker
     useEffect(() => {
         if (!countdownActive) return;
 
-        countdownTimerRef.current = setInterval(() => {
-            setCountdownSeconds(prev => {
-                if (prev <= 1) {
-                    if (countdownTimerRef.current) {
-                        clearInterval(countdownTimerRef.current);
-                        countdownTimerRef.current = null;
-                    }
-                    setCountdownActive(false);
-                    const total = anime?.episodes || 12;
-                    if (currentEpisode < total) {
-                        handleEpisodeChange(currentEpisode + 1);
-                    }
-                    return 0;
-                }
-                return prev - 1;
-            });
+        if (countdownSeconds <= 0) {
+            setCountdownActive(false);
+            const total = anime?.episodes || 12;
+            if (currentEpisode < total) {
+                handleEpisodeChange(currentEpisode + 1);
+            }
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setCountdownSeconds(prev => prev - 1);
         }, 1000);
 
-        return () => {
-            if (countdownTimerRef.current) {
-                clearInterval(countdownTimerRef.current);
-                countdownTimerRef.current = null;
-            }
-        };
-    }, [countdownActive, currentEpisode, anime]);
+        return () => clearTimeout(timer);
+    }, [countdownActive, countdownSeconds, anime, currentEpisode, handleEpisodeChange]);
 
     // Handle postMessage events from iframe for end-of-episode detection
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             try {
-                let data = event.data;
-                if (typeof data === 'string') {
-                    try { data = JSON.parse(data); } catch { return; }
-                }
-                if (!data) return;
+                const parsed = parsePlaybackEvent(event.data);
+                if (!parsed) return;
 
-                const isEnded = 
-                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'ended' || data.data?.type === 'ended')) ||
-                    data.event === 'ended' ||
-                    data.type === 'ended' ||
-                    data.event === 'player:ended' ||
-                    data.data?.event === 'player:ended';
-
-                if (isEnded) {
-                    if (autoPlayNextRef.current && !hasTriggeredAutoNext.current) {
+                if (parsed.isEnded) {
+                    if (autoPlayNextRef.current) {
                         startAutoPlayCountdown();
                     }
                 }
 
-                const isTimeUpdate = 
-                    (data.type === 'PLAYER_EVENT' && (data.data?.event === 'timeupdate' || data.data?.type === 'timeupdate')) ||
-                    data.event === 'timeupdate' ||
-                    data.type === 'timeupdate';
+                if (parsed.currentTime !== null) {
+                    const currentTime = parsed.currentTime;
+                    const duration = parsed.duration ?? 0;
 
-                if (isTimeUpdate) {
-                    const timeData = (data.type === 'PLAYER_EVENT' && data.data) ? data.data : data;
-                    const currentTime = Number(timeData.position ?? timeData.currentTime ?? timeData.time);
-                    const duration = Number(timeData.duration);
-
-                    if (!isNaN(currentTime) && !isNaN(duration) && duration > 60) {
+                    if (duration > 60) {
                         const progressPercent = (currentTime / duration) * 100;
-                        if (autoPlayNextRef.current && (currentTime >= duration - 2 || progressPercent >= 98.5)) {
-                            if (!hasTriggeredAutoNext.current && !countdownActive) {
-                                startAutoPlayCountdown();
-                            }
+                        if (autoPlayNextRef.current && (currentTime >= duration - 4 || progressPercent >= 98)) {
+                            startAutoPlayCountdown();
                         }
                     }
                 }
@@ -218,7 +230,7 @@ function AnimeWatchContent() {
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [countdownActive, anime, currentEpisode]);
+    }, [startAutoPlayCountdown]);
 
     useEffect(() => {
         if (!anime) return;
@@ -274,18 +286,19 @@ function AnimeWatchContent() {
     const totalEpisodes = anime.episodes || 12;
 
     let embedUrl = '';
+    const apParam = autoPlayNext ? '?autoplay=1' : '?autoplay=0';
     if (selectedSource === 'vidrift') {
-        embedUrl = `https://embed.vidrift.net/embed/anilist/${animeId}/${currentEpisode}`;
+        embedUrl = `https://embed.vidrift.net/embed/anilist/${animeId}/${currentEpisode}${apParam}`;
     } else if (selectedSource === 'autoembed') {
-        embedUrl = `https://player.autoembed.cc/embed/tv/${animeId}/1/${currentEpisode}`;
+        embedUrl = `https://player.autoembed.cc/embed/tv/${animeId}/1/${currentEpisode}${apParam}`;
     } else if (selectedSource === 'vidbolt') {
-        embedUrl = `https://vidbolt.xyz/tv/${animeId}/1/${currentEpisode}`;
+        embedUrl = `https://vidbolt.xyz/tv/${animeId}/1/${currentEpisode}${apParam}`;
     } else if (selectedSource === 'vidlink') {
-        embedUrl = `https://vidlink.pro/tv/${animeId}/1/${currentEpisode}`;
+        embedUrl = `https://vidlink.pro/tv/${animeId}/1/${currentEpisode}?primaryColor=E50914&autoplay=${autoPlayNext ? 'true' : 'false'}&nextbutton=true`;
     } else if (selectedSource === 'vidout') {
-        embedUrl = `https://vidout.pages.dev/tv/${animeId}/1/${currentEpisode}`;
+        embedUrl = `https://vidout.pages.dev/tv/${animeId}/1/${currentEpisode}${apParam}`;
     } else {
-        embedUrl = `https://embed.vidrift.net/embed/anilist/${animeId}/${currentEpisode}`;
+        embedUrl = `https://embed.vidrift.net/embed/anilist/${animeId}/${currentEpisode}${apParam}`;
     }
 
     const sources = [
@@ -353,7 +366,7 @@ function AnimeWatchContent() {
 
                         {/* Netflix-style Floating Next Episode Countdown Overlay */}
                         {countdownActive && currentEpisode < totalEpisodes && (
-                            <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-black/90 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-2xl animate-fade-in">
+                            <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 max-w-sm w-[calc(100%-2rem)] sm:w-auto bg-black/95 backdrop-blur-2xl border border-white/20 p-4 rounded-2xl shadow-2xl animate-fade-in pointer-events-auto">
                                 <div className="flex items-start justify-between gap-3 mb-2.5">
                                     <div className="flex items-center gap-3">
                                         <div className="relative w-8 h-8 flex items-center justify-center shrink-0">

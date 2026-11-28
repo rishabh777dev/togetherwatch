@@ -788,6 +788,11 @@ function WatchPageContent() {
                                         >
                                             <span className="text-sm shrink-0">{source.icon}</span>
                                             <span>{source.name}</span>
+                                            {source.hasAutoNext && (
+                                                <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded ${isSelected ? 'bg-black/20 text-white' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                                    AUTO-NEXT
+                                                </span>
+                                            )}
                                             {source.isAnime && (
                                                 <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded ${isSelected ? 'bg-black/20 text-white' : 'bg-pink-500/20 text-pink-300'}`}>
                                                     ANIME
@@ -818,11 +823,18 @@ function WatchPageContent() {
                                                 <span className="text-base shrink-0">{source.icon}</span>
                                                 <span className="truncate">{source.name}</span>
                                             </div>
-                                            {source.isAnime && (
-                                                <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded shrink-0 ${isSelected ? 'bg-black/20 text-white' : 'bg-pink-500/20 text-pink-300'}`}>
-                                                    ANIME
-                                                </span>
-                                            )}
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {source.hasAutoNext && (
+                                                    <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded ${isSelected ? 'bg-black/20 text-white' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                                        AUTO-NEXT
+                                                    </span>
+                                                )}
+                                                {source.isAnime && (
+                                                    <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded ${isSelected ? 'bg-black/20 text-white' : 'bg-pink-500/20 text-pink-300'}`}>
+                                                        ANIME
+                                                    </span>
+                                                )}
+                                            </div>
                                         </button>
                                     );
                                 })}

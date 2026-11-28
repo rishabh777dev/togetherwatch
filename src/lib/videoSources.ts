@@ -10,6 +10,7 @@ export interface VideoSource {
     features: string[];
     icon: string; // Emoji icon
     isAnime?: boolean;
+    hasAutoNext?: boolean;
     getEmbedUrl: (
         mediaType: 'movie' | 'tv',
         tmdbId: string,
@@ -29,6 +30,7 @@ export const videoSources: VideoSource[] = [
         description: 'Premium auto-syncing player with high speed streams',
         features: ['Auto-Sync', 'HD', 'Fast'],
         icon: '⚡',
+        hasAutoNext: true,
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
             const ap = autoPlay ? 'true' : 'false';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
@@ -43,6 +45,7 @@ export const videoSources: VideoSource[] = [
         features: ['Anime/HD', 'Subtitles', 'HLS'],
         icon: '🌊',
         isAnime: true,
+        hasAutoNext: true,
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
             const ap = autoPlay ? '?autoplay=1' : '?autoplay=0';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
@@ -56,6 +59,7 @@ export const videoSources: VideoSource[] = [
         description: 'Multi-Audio cloud player hosted on high-speed CDN',
         features: ['Multi-Audio', 'Cloudflare', 'HD'],
         icon: '🎧',
+        hasAutoNext: true,
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
             const ap = autoPlay ? '?autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined
@@ -70,6 +74,7 @@ export const videoSources: VideoSource[] = [
         features: ['Anime/HD', 'Subtitles', 'Fast'],
         icon: '🌸',
         isAnime: true,
+        hasAutoNext: true,
         getEmbedUrl: (mediaType, tmdbId, imdbId, season, episode, autoPlay = true) => {
             const ap = autoPlay ? '?autoplay=1' : '';
             return mediaType === 'tv' && season !== undefined && episode !== undefined

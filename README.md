@@ -33,6 +33,20 @@ Dynamic backdrop artwork blur, curated hero carousels, Continue Watching shelf, 
 
 <br/>
 
+### 🎬 Cinematic Movie & TV Details Page
+Full-bleed widescreen backdrop, dual IMDb & TMDB ratings, floating frosted glass metadata sidebar (directors, languages, release date), embedded YouTube trailer, and interactive cast scroller.
+
+![Movie & TV Details Overview](docs/screenshots/movie-details.jpg)
+
+<br/>
+
+### 🌟 Interactive Actor Filmography & Discovery Hub
+Click any actor card to explore their career filmography with real-time category filters (All, Movies, TV Series), sorting, and 1-click watch links.
+
+![Actor Filmography](docs/screenshots/actor-filmography.jpg)
+
+<br/>
+
 ### 🏆 Top 10 Rankings & Portrait Media Rails
 Stylized oversized typography rankings, rating badges, release years, and portrait aspect-ratio cards matching modern OTT standards.
 

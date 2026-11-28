@@ -278,7 +278,7 @@ function DetailsContent() {
             </div>
 
             {/* HERO SECTION WITH BACKDROP & LIQUID VIGNETTE */}
-            <div className="relative w-full min-h-[85vh] lg:min-h-[92vh] flex items-end overflow-hidden pb-12 pt-28">
+            <div className="relative w-full min-h-screen flex items-end overflow-hidden pb-8 pt-24">
                 {/* Backdrop Image */}
                 <div className="absolute inset-0 z-0">
                     {media.backdrop_path ? (
@@ -288,7 +288,7 @@ function DetailsContent() {
                             fill
                             priority
                             sizes="100vw"
-                            className="object-cover object-top filter brightness-[0.72] contrast-[1.08] saturate-[110%]"
+                            className="object-cover object-top filter brightness-[0.70] contrast-[1.08] saturate-[110%]"
                         />
                     ) : (
                         <div className="w-full h-full bg-[#0a0a0e]" />
@@ -296,13 +296,13 @@ function DetailsContent() {
 
                     {/* Multi-layered liquid gradients for seamless glass fusion */}
                     <div className="absolute inset-0 bg-gradient-to-r from-[#070709]/95 via-[#070709]/75 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#070709] via-[#070709]/55 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#070709] via-[#070709]/60 to-transparent" />
                     <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#070709] to-transparent" />
                 </div>
 
                 {/* Hero Content Container */}
-                <div className="relative z-10 max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 w-full">
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-end">
+                <div className="relative z-10 max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col justify-end">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-end mb-6">
                         
                         {/* LEFT COLUMN: Title, Badges, Actions, Synopsis */}
                         <div className="lg:col-span-8 flex flex-col">
@@ -515,64 +515,65 @@ function DetailsContent() {
                         </div>
 
                     </div>
+
+                    {/* Integrated Cast & Stars Row (3D Spherical Liquid Lens Avatars - Visible on initial screen) */}
+                    {castMembers.length > 0 && (
+                        <div className="w-full pt-4 border-t border-white/10">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-[3px] h-5 bg-accent rounded-full shadow-[0_0_12px_rgba(229,9,20,0.8)]" />
+                                    <h2 className="text-base sm:text-lg font-black tracking-tight text-white">Cast</h2>
+                                </div>
+                                <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider hidden sm:inline">
+                                    Click an actor to explore filmography
+                                </span>
+                            </div>
+
+                            {/* Circular Cast Scroller with 3D Spherical Liquid Lens Avatars */}
+                            <div className="flex items-start gap-4 sm:gap-6 overflow-x-auto pb-2 scrollbar-none scroll-smooth">
+                                {castMembers.map((actor) => (
+                                    <Link
+                                        key={actor.id}
+                                        href={`/person/${actor.id}`}
+                                        className="group flex flex-col items-center flex-shrink-0 w-20 sm:w-24 text-center cursor-pointer"
+                                        title={`View all movies & shows with ${actor.name}`}
+                                    >
+                                        {/* 3D Liquid Glass Droplet Lens Avatar */}
+                                        <div className="liquid-lens-avatar relative w-16 h-16 sm:w-20 sm:h-20 bg-white/5 mb-2 cursor-pointer">
+                                            {actor.profile_path ? (
+                                                <Image
+                                                    src={getImageUrl(actor.profile_path, 'w185')}
+                                                    alt={actor.name}
+                                                    fill
+                                                    sizes="80px"
+                                                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center font-bold text-white/40 text-xs bg-black/60">
+                                                    {actor.name.slice(0, 2).toUpperCase()}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Actor Name */}
+                                        <span className="text-xs font-bold text-white group-hover:text-accent transition-colors line-clamp-1 w-full">
+                                            {actor.name}
+                                        </span>
+                                        {/* Character Tag */}
+                                        <span className="text-[10px] text-white/50 line-clamp-1 w-full mt-0.5">
+                                            {actor.character || 'Cast'}
+                                        </span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             </div>
 
             {/* MAIN DETAILS BODY CONTENT */}
             <div className="relative z-10 max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 w-full py-12 space-y-14">
-
-                {/* 1. CAST SECTION (Liquid Glass Droplet Lenses) */}
-                {castMembers.length > 0 && (
-                    <section className="w-full">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className="w-[3px] h-6 bg-accent rounded-full shadow-[0_0_12px_rgba(229,9,20,0.8)]" />
-                                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">Cast & Stars</h2>
-                            </div>
-                            <span className="text-xs font-semibold text-white/40 uppercase tracking-wider">
-                                Click an actor to explore filmography
-                            </span>
-                        </div>
-
-                        {/* Circular Cast Scroller with Liquid Lens Avatars */}
-                        <div className="flex items-start gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-none scroll-smooth">
-                            {castMembers.map((actor) => (
-                                <Link
-                                    key={actor.id}
-                                    href={`/person/${actor.id}`}
-                                    className="group flex flex-col items-center flex-shrink-0 w-24 sm:w-28 text-center"
-                                    title={`View all movies & shows with ${actor.name}`}
-                                >
-                                    {/* Liquid Glass Droplet Lens Avatar */}
-                                    <div className="liquid-lens-avatar relative w-20 h-20 sm:w-24 sm:h-24 bg-white/5 mb-3 cursor-pointer">
-                                        {actor.profile_path ? (
-                                            <Image
-                                                src={getImageUrl(actor.profile_path, 'w185')}
-                                                alt={actor.name}
-                                                fill
-                                                sizes="96px"
-                                                className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center font-bold text-white/40 text-sm bg-black/60">
-                                                {actor.name.slice(0, 2).toUpperCase()}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Actor Name */}
-                                    <span className="text-xs sm:text-sm font-bold text-white group-hover:text-accent transition-colors line-clamp-1 w-full">
-                                        {actor.name}
-                                    </span>
-                                    {/* Character Tag */}
-                                    <span className="text-[11px] text-white/50 line-clamp-1 w-full mt-0.5">
-                                        {actor.character || 'Cast'}
-                                    </span>
-                                </Link>
-                            ))}
-                        </div>
-                    </section>
-                )}
 
                 {/* 2. TV SHOW EPISODE SELECTOR (When type is TV) */}
                 {type === 'tv' && media.seasons && media.seasons.length > 0 && (

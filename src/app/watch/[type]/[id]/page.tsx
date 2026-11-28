@@ -14,7 +14,7 @@ import {
     getAutoPlayNext,
     saveAutoPlayNext
 } from '@/lib/watchProgress';
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Clock, Play, SkipForward, Sparkles, Star, Users, X } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Clock, Info, Play, SkipForward, Sparkles, Star, Users, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -744,6 +744,16 @@ function WatchPageContent() {
                             >
                                 <Users className="w-4 h-4" />
                                 <span>Watch Together</span>
+                            </Link>
+
+                            {/* View Full Details & Trailer */}
+                            <Link
+                                href={`/details/${type}/${idParam}`}
+                                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-white/15 hover:border-accent/40"
+                                title="View full synopsis, cast, ratings, and trailer"
+                            >
+                                <Info className="w-3.5 h-3.5 text-accent" />
+                                <span>Details</span>
                             </Link>
                         </div>
                     </div>

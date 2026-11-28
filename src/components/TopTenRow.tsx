@@ -54,7 +54,7 @@ export default function TopTenRow({ movies }: TopTenRowProps) {
                     return (
                         <div 
                             key={`${type}:${movie.id}`}
-                            onClick={() => router.push(`/watch/${type}/${movie.id}`)}
+                            onClick={() => router.push(`/details/${type}/${movie.id}`)}
                             className="flex-shrink-0 relative w-[140px] md:w-[180px] lg:w-[220px] group cursor-pointer"
                         >
                             {/* Giant Number Behind */}

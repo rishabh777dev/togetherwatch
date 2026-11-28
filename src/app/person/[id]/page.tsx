@@ -377,7 +377,7 @@ function PersonPageContent() {
                                 return (
                                     <Link
                                         key={`${mediaType}:${item.id}:${index}`}
-                                        href={`/watch/${mediaType}/${item.id}`}
+                                        href={`/details/${mediaType}/${item.id}`}
                                         className="group flex flex-col cursor-pointer"
                                     >
                                         {/* Poster Image Container */}

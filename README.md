@@ -113,6 +113,13 @@ Supabase Realtime-powered room synchronization, presence indicators, host playhe
 * **Smart Category Filters & Sorting**: Instantly filter between All titles, Feature Films, and TV Series, with sorting by Popularity, Release Date, or TMDB Rating.
 * **Rich Biographies & Direct Playback**: Read detailed actor biographies, birthdays, and character roles with instant 1-click watch navigation.
 
+### 🎬 9. Cinematic Movie & TV Details Page
+* **Rich Glassmorphic Overview**: Full-bleed backdrop, synopsis, dual IMDb & TMDB ratings, runtime, content certificates, and floating frosted glass metadata sidebar (directors, creators, languages, studios).
+* **Trailer Preview Player**: Embedded YouTube official trailer playback directly on the page and full-screen modal.
+* **Integrated Cast & Filmography**: Circular actor avatar scroller directly linked to the Actor Filmography page.
+* **Interactive Episode Guide**: Full season-by-season episode explorer with thumbnails, runtimes, and direct episode launches for TV series.
+* **Community & Critic Reviews**: Authentic audience reviews with star ratings and reviewer badges.
+
 ---
 
 ## 🛠️ Tech Stack & Architecture

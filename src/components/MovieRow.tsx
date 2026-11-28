@@ -67,7 +67,12 @@ function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 't
     const type = movie.media_type || mediaType;
     const movieId = movie.id;
 
-    const handleCardClick = () => router.push(`/watch/${type}/${movieId}`);
+    const handleCardClick = () => router.push(`/details/${type}/${movieId}`);
+
+    const handleDirectPlay = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        router.push(`/watch/${type}/${movieId}`);
+    };
 
     // Prioritize poster_path for portrait movie/series poster
     const imagePath = movie.poster_path || movie.backdrop_path;
@@ -111,9 +116,13 @@ function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 't
                     </span>
                 </div>
 
-                {/* Center Hover Play Overlay */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <div className="w-11 h-11 rounded-full bg-accent text-white flex items-center justify-center shadow-[0_0_20px_rgba(229,9,20,0.6)] transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                {/* Center Hover Play Overlay (Direct Play Action) */}
+                <div 
+                    onClick={handleDirectPlay}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer"
+                    title={`Direct play ${title}`}
+                >
+                    <div className="w-11 h-11 rounded-full bg-accent text-white flex items-center justify-center shadow-[0_0_20px_rgba(229,9,20,0.6)] transform scale-75 group-hover:scale-100 transition-transform duration-300 hover:scale-110 active:scale-95">
                         <Play className="w-5 h-5 fill-white ml-0.5" />
                     </div>
                 </div>

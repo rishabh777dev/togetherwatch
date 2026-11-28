@@ -80,7 +80,7 @@ function HeroSlide({ movie, isActive }: HeroSlideProps) {
                                 Play
                             </Link>
                             <Link
-                                href={`/watch/${movie.media_type || 'movie'}/${movie.id}`}
+                                href={`/details/${movie.media_type || 'movie'}/${movie.id}`}
                                 className="flex items-center gap-2 bg-[#1a1a1a]/80 text-white border border-white/20 px-6 sm:px-8 py-2.5 sm:py-3 rounded-full font-bold hover:bg-white/10 hover:border-white/40 transition-all backdrop-blur-md text-sm sm:text-base"
                             >
                                 <Info className="w-4 h-4 sm:w-5 sm:h-5" />

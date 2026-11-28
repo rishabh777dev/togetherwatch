@@ -39,7 +39,7 @@ export default function RecommendationsGrid({ recommendations, currentType }: Re
                     return (
                         <div 
                             key={`${type}:${movie.id}`}
-                            onClick={() => router.push(`/watch/${type}/${movie.id}`)}
+                            onClick={() => router.push(`/details/${type}/${movie.id}`)}
                             className="group cursor-pointer select-none"
                         >
                             <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-[#141414] border border-white/5 shadow-lg shadow-black/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:border-white/20">

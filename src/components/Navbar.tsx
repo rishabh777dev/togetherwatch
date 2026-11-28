@@ -253,7 +253,7 @@ export default function Navbar() {
                                                 return (
                                                     <Link
                                                         key={`${item.media_type}:${item.id}`}
-                                                        href={`/watch/${item.media_type || 'movie'}/${item.id}`}
+                                                        href={`/details/${item.media_type || 'movie'}/${item.id}`}
                                                         onClick={() => {
                                                             setIsSearchOpen(false);
                                                             setSearchQuery('');

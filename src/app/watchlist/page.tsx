@@ -87,7 +87,7 @@ export default function WatchlistPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                             {items.map((item) => (
                                 <div key={item.id} className="group">
-                                    <Link href={`/watch/${item.media_type}/${item.id}`}>
+                                    <Link href={`/details/${item.media_type}/${item.id}`}>
                                         <div className="poster-card aspect-[2/3] relative">
                                             <Image
                                                 src={getImageUrl(item.poster_path)}

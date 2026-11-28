@@ -18,12 +18,51 @@ export interface Movie {
     media_type?: 'movie' | 'tv';
     genres?: { id: number; name: string }[];
     runtime?: number;
-    seasons?: { id: number; season_number: number; name: string; episode_count: number }[];
+    tagline?: string;
+    status?: string;
+    budget?: number;
+    revenue?: number;
+    original_language?: string;
+    production_companies?: { id: number; name: string; logo_path: string | null }[];
+    number_of_seasons?: number;
+    number_of_episodes?: number;
+    created_by?: { id: number; name: string; profile_path: string | null }[];
+    seasons?: { id: number; season_number: number; name: string; episode_count: number; poster_path?: string | null; air_date?: string }[];
     credits?: {
         cast: { id: number; name: string; character: string; profile_path: string | null }[];
+        crew?: { id: number; name: string; job: string; department: string; profile_path: string | null }[];
+    };
+    videos?: {
+        results: {
+            id: string;
+            key: string;
+            name: string;
+            site: string;
+            type: string;
+            official: boolean;
+        }[];
+    };
+    reviews?: {
+        results: {
+            id: string;
+            author: string;
+            author_details?: {
+                name: string;
+                username: string;
+                avatar_path: string | null;
+                rating: number | null;
+            };
+            content: string;
+            created_at: string;
+            url: string;
+        }[];
     };
     recommendations?: {
         results: Movie[];
+    };
+    external_ids?: {
+        imdb_id?: string;
+        tvdb_id?: number;
     };
 }
 
@@ -184,9 +223,9 @@ export async function getMovieDetails(id: number | string): Promise<Movie | null
 
     if (!resolvedId) return null;
 
-    const data = await fetchTMDB(`/movie/${resolvedId}`, { append_to_response: 'credits,recommendations' });
+    const data = await fetchTMDB(`/movie/${resolvedId}`, { append_to_response: 'credits,recommendations,videos,reviews,external_ids' });
     if (!data) return null;
-    return { ...data, media_type: 'movie', imdbID: data.imdb_id };
+    return { ...data, media_type: 'movie', imdbID: data.imdb_id || data.external_ids?.imdb_id };
 }
 
 export async function getTVDetails(id: number | string): Promise<Movie | null> {
@@ -196,7 +235,7 @@ export async function getTVDetails(id: number | string): Promise<Movie | null> {
 
     if (!resolvedId) return null;
 
-    const data = await fetchTMDB(`/tv/${resolvedId}`, { append_to_response: 'credits,recommendations,external_ids' });
+    const data = await fetchTMDB(`/tv/${resolvedId}`, { append_to_response: 'credits,recommendations,videos,reviews,external_ids' });
     if (!data) return null;
     return { ...data, media_type: 'tv', imdbID: data.external_ids?.imdb_id };
 }

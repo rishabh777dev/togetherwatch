@@ -534,7 +534,7 @@ function BrowseContent() {
                                         (displayContent as Movie[]).map((item, index) => (
                                             <Link
                                                 key={mediaKey(item)}
-                                                href={`/watch/${item.media_type || 'movie'}/${item.imdbID || item.id}`}
+                                                href={`/details/${item.media_type || 'movie'}/${item.imdbID || item.id}`}
                                                 className="group"
                                             >
                                                 <div className="poster-card aspect-[2/3] relative">

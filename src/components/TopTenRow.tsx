@@ -3,7 +3,7 @@
 import { getImageUrl, Movie } from '@/lib/tmdb';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useRef } from 'react';
 
 interface TopTenRowProps {
@@ -12,7 +12,6 @@ interface TopTenRowProps {
 
 export default function TopTenRow({ movies }: TopTenRowProps) {
     const rowRef = useRef<HTMLDivElement>(null);
-    const router = useRouter();
 
     const scroll = (direction: 'left' | 'right') => {
         if (rowRef.current) {
@@ -52,10 +51,10 @@ export default function TopTenRow({ movies }: TopTenRowProps) {
                     const type = movie.media_type || 'movie';
                     
                     return (
-                        <div 
+                        <Link 
                             key={`${type}:${movie.id}`}
-                            onClick={() => router.push(`/details/${type}/${movie.id}`)}
-                            className="flex-shrink-0 relative w-[140px] md:w-[180px] lg:w-[220px] group cursor-pointer"
+                            href={`/details/${type}/${movie.id}`}
+                            className="flex-shrink-0 relative w-[140px] md:w-[180px] lg:w-[220px] group cursor-pointer block"
                         >
                             {/* Giant Number Behind */}
                             <div className="absolute -left-6 -bottom-6 md:-left-10 md:-bottom-8 lg:-left-12 lg:-bottom-10 z-0 select-none pointer-events-none">
@@ -75,7 +74,7 @@ export default function TopTenRow({ movies }: TopTenRowProps) {
                                 />
                                 <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-300"></div>
                             </div>
-                        </div>
+                        </Link>
                     );
                 })}
             </div>

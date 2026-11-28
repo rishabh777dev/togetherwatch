@@ -43,9 +43,14 @@ function HeroSlide({ movie, isActive }: HeroSlideProps) {
                     <div className="max-w-2xl">
                         
                         {/* Title - Bold cinematic impact font style */}
-                        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black mb-3 tracking-tighter uppercase animate-slide-up leading-[0.95] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] text-white">
-                            {title}
-                        </h1>
+                        <Link 
+                            href={`/details/${movie.media_type || 'movie'}/${movie.id}`}
+                            className="block group"
+                        >
+                            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black mb-3 tracking-tighter uppercase animate-slide-up leading-[0.95] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] text-white group-hover:text-accent transition-colors">
+                                {title}
+                            </h1>
+                        </Link>
 
                         {/* Metadata Row */}
                         <div className="flex items-center gap-3 mb-4 animate-fade-in text-xs sm:text-sm font-semibold text-white/90">

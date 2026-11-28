@@ -4,7 +4,7 @@ import WatchlistButton from '@/components/WatchlistButton';
 import { getImageUrl, Movie } from '@/lib/tmdb';
 import { ChevronLeft, ChevronRight, Play, Star } from 'lucide-react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useRef } from 'react';
 
 interface MovieRowProps {
@@ -62,17 +62,9 @@ export default function MovieRow({ title, movies, mediaType = 'movie' }: MovieRo
 }
 
 function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 'tv' }) {
-    const router = useRouter();
     const title = movie.title || movie.name || '';
     const type = movie.media_type || mediaType;
     const movieId = movie.id;
-
-    const handleCardClick = () => router.push(`/details/${type}/${movieId}`);
-
-    const handleDirectPlay = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        router.push(`/watch/${type}/${movieId}`);
-    };
 
     // Prioritize poster_path for portrait movie/series poster
     const imagePath = movie.poster_path || movie.backdrop_path;
@@ -84,8 +76,8 @@ function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 't
             : null;
 
     return (
-        <div 
-            onClick={handleCardClick}
+        <Link 
+            href={`/details/${type}/${movieId}`}
             className="flex-shrink-0 w-[140px] sm:w-[165px] md:w-[185px] lg:w-[205px] group cursor-pointer select-none"
         >
             {/* Poster Card (2:3 Portrait Aspect Ratio) */}
@@ -116,13 +108,11 @@ function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 't
                     </span>
                 </div>
 
-                {/* Center Hover Play Overlay (Direct Play Action) */}
+                {/* Center Hover Play Overlay (Visual Indicator) */}
                 <div 
-                    onClick={handleDirectPlay}
-                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer"
-                    title={`Direct play ${title}`}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none"
                 >
-                    <div className="w-11 h-11 rounded-full bg-accent text-white flex items-center justify-center shadow-[0_0_20px_rgba(229,9,20,0.6)] transform scale-75 group-hover:scale-100 transition-transform duration-300 hover:scale-110 active:scale-95">
+                    <div className="w-11 h-11 rounded-full bg-accent text-white flex items-center justify-center shadow-[0_0_20px_rgba(229,9,20,0.6)] transform scale-75 group-hover:scale-100 transition-transform duration-300">
                         <Play className="w-5 h-5 fill-white ml-0.5" />
                     </div>
                 </div>
@@ -130,7 +120,10 @@ function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 't
                 {/* Watchlist Quick Action (Bottom Right) */}
                 <div 
                     className="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
                 >
                     <WatchlistButton item={{...movie, media_type: type}} variant="icon" />
                 </div>
@@ -147,6 +140,6 @@ function MovieCard({ movie, mediaType }: { movie: Movie; mediaType: 'movie' | 't
                     <span className="capitalize">{type === 'movie' ? 'Movie' : 'TV Series'}</span>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }

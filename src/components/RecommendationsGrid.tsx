@@ -2,7 +2,7 @@
 
 import { getImageUrl, Movie } from '@/lib/tmdb';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Play, Star } from 'lucide-react';
 
 interface RecommendationsGridProps {
@@ -11,8 +11,6 @@ interface RecommendationsGridProps {
 }
 
 export default function RecommendationsGrid({ recommendations, currentType }: RecommendationsGridProps) {
-    const router = useRouter();
-
     if (!recommendations || recommendations.length === 0) return null;
 
     // Show up to 12 recommendations
@@ -37,10 +35,10 @@ export default function RecommendationsGrid({ recommendations, currentType }: Re
                             : null;
 
                     return (
-                        <div 
+                        <Link 
                             key={`${type}:${movie.id}`}
-                            onClick={() => router.push(`/details/${type}/${movie.id}`)}
-                            className="group cursor-pointer select-none"
+                            href={`/details/${type}/${movie.id}`}
+                            className="group cursor-pointer select-none block"
                         >
                             <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-[#141414] border border-white/5 shadow-lg shadow-black/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:border-white/20">
                                 <Image
@@ -65,7 +63,7 @@ export default function RecommendationsGrid({ recommendations, currentType }: Re
                                     </span>
                                 </div>
 
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
                                     <div className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center shadow-[0_0_15px_rgba(229,9,20,0.6)] transform scale-75 group-hover:scale-100 transition-transform duration-300">
                                         <Play className="w-4 h-4 fill-white ml-0.5" />
                                     </div>
@@ -82,7 +80,7 @@ export default function RecommendationsGrid({ recommendations, currentType }: Re
                                     <span className="capitalize">{type === 'movie' ? 'Movie' : 'TV Series'}</span>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     );
                 })}
             </div>
